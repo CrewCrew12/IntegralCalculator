@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "559879592967",
+    "project_id": "integralcalculator-a847b",
+    "storage_bucket": "integralcalculator-a847b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:559879592967:android:8b55fe704633a9d3645ea2",
+        "android_client_info": {
+          "package_name": "com.example.integralcalculator"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC9AEc-IHl0Vzu1u-q-8-TN0JFc1Mku0Gg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
