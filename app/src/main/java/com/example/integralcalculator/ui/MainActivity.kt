@@ -1,6 +1,5 @@
 package com.example.integralcalculator.ui
 
-import com.example.integralcalculator.R
 import android.graphics.Color
 import android.os.Bundle
 import android.text.Editable
@@ -9,21 +8,22 @@ import android.view.View
 import android.webkit.WebView
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
+import androidx.activity.viewModels
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.chaquo.python.Python
-import androidx.lifecycle.Lifecycle
 import com.chaquo.python.android.AndroidPlatform
-import com.example.integralcalculator.data.datasource.PythonSolverDataSource
-import com.example.integralcalculator.data.repository.IntegralRepositoryImpl
-import com.example.integralcalculator.domain.usecase.CalculateIntegralUseCase
+import com.example.integralcalculator.R
 import com.example.integralcalculator.presentation.state.CalculatorState
 import com.example.integralcalculator.presentation.viewmodel.CalculatorViewModel
+import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 
+@AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
+    private val viewModel: CalculatorViewModel by viewModels()
+
     private lateinit var btnToggleABC: Button
     private lateinit var btnToggleFunc: Button
     private lateinit var btnToggle123: Button
@@ -40,7 +40,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var layoutLetters: GridLayout
     private lateinit var layoutFunctions: GridLayout
     private lateinit var btnNewCalc: Button
-    private lateinit var viewModel: CalculatorViewModel
+
     private var currentTab = 0
     private var isSelectingVarMode = false
 
@@ -48,10 +48,11 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        // Инициализация Python (только один раз)
         if (!Python.isStarted()) Python.start(AndroidPlatform(this))
 
         bindViews()
-        initViewModel()
+        // initViewModel() ← УДАЛЕНО: Hilt делает это сам!
         setupWebViews()
         initUI()
         observeState()
@@ -75,6 +76,7 @@ class MainActivity : AppCompatActivity() {
         btnToggleFunc = findViewById(R.id.btnToggleFunc)
         btnToggle123 = findViewById(R.id.btnToggle123)
     }
+
     private fun updateTabButtons(activeTab: Int) {
         val colorActive = Color.parseColor("#00BFA5")
         val colorInactive = Color.parseColor("#333333")
@@ -90,17 +92,8 @@ class MainActivity : AppCompatActivity() {
         btnToggle123.setBackgroundColor(if (activeTab == 0) colorActive else colorInactive)
         btnToggle123.setTextColor(if (activeTab == 0) textActive else textInactive)
     }
-    private fun initViewModel() {
-        val dataSource = PythonSolverDataSource()
-        val repository = IntegralRepositoryImpl(dataSource)
-        val useCase = CalculateIntegralUseCase(repository)
 
-        viewModel = ViewModelProvider(this, object : ViewModelProvider.Factory {
-            @Suppress("UNCHECKED_CAST")
-            override fun <T : ViewModel> create(modelClass: Class<T>): T =
-                CalculatorViewModel(useCase) as T
-        })[CalculatorViewModel::class.java]
-    }
+    // ← УДАЛЕНО: initViewModel() больше не нужен, Hilt всё делает сам!
 
     private fun initUI() {
         setupTabs()
@@ -145,7 +138,6 @@ class MainActivity : AppCompatActivity() {
             "\\int"
         }
         val fullLatex = "${modeSymbol} \\left( ${state.latexPreview} \\right) \\, d${state.integrationVar}"
-
         renderLatex(webviewPreview, fullLatex)
     }
 
@@ -163,25 +155,11 @@ class MainActivity : AppCompatActivity() {
                     <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
                     <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
                     <style>
-                        body { 
-                            margin: 0; 
-                            padding: 10px; 
-                            color: #fff; 
-                            font-size: 18px; 
-                            text-align: center; 
-                            background-color: transparent;
-                        }
-                        /* Заставляем формулы быть крупными и по центру */
-                        .MathJax_Display {
-                            margin: 0 !important;
-                            overflow-x: auto;
-                            overflow-y: hidden;
-                        }
+                        body { margin: 0; padding: 10px; color: #fff; font-size: 18px; text-align: center; background-color: transparent; }
+                        .MathJax_Display { margin: 0 !important; overflow-x: auto; overflow-y: hidden; }
                     </style>
                 </head>
-                <body>
-                    <div id="math-container"></div>
-                </body>
+                <body><div id="math-container"></div></body>
                 </html>
             """.trimIndent()
             webView.loadDataWithBaseURL(null, html, "text/html", "utf-8", null)
@@ -194,13 +172,11 @@ class MainActivity : AppCompatActivity() {
             return
         }
         val escapedLatex = latex.replace("\\", "\\\\").replace("'", "\\'")
-
         val jsCode = """
             var container = document.getElementById('math-container');
             container.innerHTML = '$$${escapedLatex}$$';
             MathJax.typesetPromise([container]).catch(function(err) { console.log(err); });
         """.trimIndent()
-
         webView.evaluateJavascript(jsCode, null)
     }
 
@@ -218,7 +194,6 @@ class MainActivity : AppCompatActivity() {
             layoutFunctions.visibility = View.GONE
             updateTabButtons(1)
         }
-
         btnToggleFunc.setOnClickListener {
             currentTab = 2
             layoutBasic.visibility = View.GONE
@@ -226,7 +201,6 @@ class MainActivity : AppCompatActivity() {
             layoutFunctions.visibility = View.VISIBLE
             updateTabButtons(2)
         }
-
         btnToggle123.setOnClickListener {
             currentTab = 0
             layoutBasic.visibility = View.VISIBLE
@@ -265,7 +239,7 @@ class MainActivity : AppCompatActivity() {
             layoutLetters.visibility = View.VISIBLE
             layoutFunctions.visibility = View.GONE
             updateTabButtons(1)
-            Toast.makeText(this, "Выберите переменную (a-z или греческую)", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Выберите переменную (a-z)", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -280,20 +254,14 @@ class MainActivity : AppCompatActivity() {
             Pair(R.id.btnPi, "pi"), Pair(R.id.btnE, "e"), Pair(R.id.btnFrac, "()/()")
         )
 
-        basicButtons.forEach { pair ->
-            val id = pair.first
-            val text = pair.second
-
+        basicButtons.forEach { (id, text) ->
             findViewById<Button>(id).setOnClickListener {
                 if (text == "()/()") {
                     viewModel.appendInput("()/()", "\\frac{}{}")
                 } else {
                     val latexMap = mapOf(
-                        "*" to "\\cdot ",
-                        "pi" to "\\pi",
-                        "sqrt(" to "\\sqrt{",
-                        "abs(" to "\\left|",
-                        "^" to "^{"
+                        "*" to "\\cdot ", "pi" to "\\pi", "sqrt(" to "\\sqrt{",
+                        "abs(" to "\\left|", "^" to "^{"
                     )
                     val latex = latexMap[text] ?: text
                     viewModel.appendInput(text, latex)
@@ -317,20 +285,18 @@ class MainActivity : AppCompatActivity() {
             R.id.btnVarY to "y", R.id.btnVarZ to "z"
         )
 
-        latinLetters.forEach { pair ->
-            val id = pair.first
-            val char = pair.second
+        latinLetters.forEach { (id, char) ->
             findViewById<Button>(id).setOnClickListener {
                 if (isSelectingVarMode) selectVariable(char) else viewModel.appendInput(char, char)
             }
         }
 
-        val greekLetters: Map<Int, Pair<String, String>> = mapOf(
+        // Греческие буквы (если есть в твоём XML)
+        val greekMap = mapOf(
             R.id.btnGreekAlpha to Pair("α", "\\alpha"),
             R.id.btnGreekBeta to Pair("β", "\\beta")
         )
-
-        greekLetters.forEach { (id, pair) ->
+        greekMap.forEach { (id, pair) ->
             val text = pair.first
             val latex = pair.second
             findViewById<Button>(id).setOnClickListener {
@@ -387,6 +353,7 @@ class MainActivity : AppCompatActivity() {
             screenInput.visibility = View.VISIBLE
         }
     }
+
     private fun selectVariable(variable: String) {
         viewModel.setVariable(variable)
         btnDiffVar.text = "d$variable"
