@@ -1,5 +1,9 @@
 package com.example.integralcalculator.domain.usecase.calculator
 
+import com.example.integralcalculator.domain.CalcMode
+import com.example.integralcalculator.domain.model.CalcRequest
+import com.example.integralcalculator.domain.model.CalcResult
+import com.example.integralcalculator.domain.repository.CalculatorRepository
 import javax.inject.Inject
 
 class CalculateExpressionUseCase @Inject constructor(

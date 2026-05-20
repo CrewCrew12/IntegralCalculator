@@ -93,8 +93,6 @@ class MainActivity : AppCompatActivity() {
         btnToggle123.setTextColor(if (activeTab == 0) textActive else textInactive)
     }
 
-    // ← УДАЛЕНО: initViewModel() больше не нужен, Hilt всё делает сам!
-
     private fun initUI() {
         setupTabs()
         setupModeSwitch()
