@@ -2,23 +2,31 @@ package com.example.integralcalculator.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.integralcalculator.domain.model.CalcRecord
 import com.example.integralcalculator.domain.usecase.CalculateIntegralUseCase
+import com.example.integralcalculator.domain.usecase.auth.GetCurrentUserUseCase
+import com.example.integralcalculator.domain.usecase.history.SaveHistoryRecordUseCase
 import com.example.integralcalculator.presentation.state.CalculatorState
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
+@HiltViewModel
 class CalculatorViewModel @Inject constructor(
-    private val calculateUseCase: CalculateIntegralUseCase
+    private val calculateUseCase: CalculateIntegralUseCase,
+    private val saveHistoryUseCase: SaveHistoryRecordUseCase,
+    private val getCurrentUserUseCase: GetCurrentUserUseCase
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(CalculatorState())
     val state: StateFlow<CalculatorState> = _state.asStateFlow()
 
     private fun inputToLatex(raw: String): String {
-        var latex = raw
+        return raw
             .replace("()/()", "\\frac{}{}")
             .replace("sqrt(", "\\sqrt{")
             .replace("sin(", "\\sin\\left(")
@@ -38,11 +46,8 @@ class CalculatorViewModel @Inject constructor(
             .replace("β", "\\beta")
             .replace("^", "^{")
             .replace("*", "\\cdot ")
-            .replace(" + ", " + ")
-            .replace(" - ", " - ")
-            .replace(" / ", " / ")
-        return latex
     }
+
     fun appendInput(text: String, latex: String) {
         _state.update {
             val newRaw = it.rawInput + text
@@ -85,6 +90,21 @@ class CalculatorViewModel @Inject constructor(
                 current.rawInput, current.integrationVar,
                 current.isDefinite, current.lowerLimit, current.upperLimit
             )
+
+            // 🔥 СОХРАНЯЕМ В ИСТОРИЮ, если пользователь авторизован
+            if (result.success) {
+                val userId = getCurrentUserUseCase()
+                if (userId != null) {
+                    val record = CalcRecord(
+                        expression = current.rawInput,
+                        variable = current.integrationVar,
+                        result = result.latex,
+                        timestamp = System.currentTimeMillis(),
+                        isDefinite = current.isDefinite
+                    )
+                    saveHistoryUseCase(userId, record)
+                }
+            }
 
             _state.update {
                 it.copy(

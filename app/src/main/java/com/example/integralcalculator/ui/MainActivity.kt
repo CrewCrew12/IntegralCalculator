@@ -1,5 +1,6 @@
 package com.example.integralcalculator.ui
 
+import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
 import android.text.Editable
@@ -16,6 +17,7 @@ import com.chaquo.python.Python
 import com.chaquo.python.android.AndroidPlatform
 import com.example.integralcalculator.R
 import com.example.integralcalculator.presentation.state.CalculatorState
+import com.example.integralcalculator.presentation.viewmodel.AuthViewModel
 import com.example.integralcalculator.presentation.viewmodel.CalculatorViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
@@ -23,6 +25,7 @@ import kotlinx.coroutines.launch
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
     private val viewModel: CalculatorViewModel by viewModels()
+    private val authViewModel: AuthViewModel by viewModels()
 
     private lateinit var btnToggleABC: Button
     private lateinit var btnToggleFunc: Button
@@ -40,6 +43,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var layoutLetters: GridLayout
     private lateinit var layoutFunctions: GridLayout
     private lateinit var btnNewCalc: Button
+    private lateinit var btnHistory: Button
 
     private var currentTab = 0
     private var isSelectingVarMode = false
@@ -48,14 +52,13 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        // Инициализация Python (только один раз)
         if (!Python.isStarted()) Python.start(AndroidPlatform(this))
 
         bindViews()
-        // initViewModel() ← УДАЛЕНО: Hilt делает это сам!
         setupWebViews()
         initUI()
-        observeState()
+        observeAuthState()
+        observeCalculatorState()
     }
 
     private fun bindViews() {
@@ -75,33 +78,27 @@ class MainActivity : AppCompatActivity() {
         btnToggleABC = findViewById(R.id.btnToggleABC)
         btnToggleFunc = findViewById(R.id.btnToggleFunc)
         btnToggle123 = findViewById(R.id.btnToggle123)
+        btnHistory = findViewById(R.id.btnHistory)
     }
 
-    private fun updateTabButtons(activeTab: Int) {
-        val colorActive = Color.parseColor("#00BFA5")
-        val colorInactive = Color.parseColor("#333333")
-        val textActive = Color.parseColor("#FFFFFF")
-        val textInactive = Color.parseColor("#B388FF")
+    private fun observeAuthState() {
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                authViewModel.uiState.collect { authState ->
+                    if (!authState.isLoggedIn) {
+                        startActivity(Intent(this@MainActivity, AuthActivity::class.java))
+                        finish()
+                        return@collect
+                    }
 
-        btnToggleABC.setBackgroundColor(if (activeTab == 1) colorActive else colorInactive)
-        btnToggleABC.setTextColor(if (activeTab == 1) textActive else textInactive)
-
-        btnToggleFunc.setBackgroundColor(if (activeTab == 2) colorActive else colorInactive)
-        btnToggleFunc.setTextColor(if (activeTab == 2) textActive else textInactive)
-
-        btnToggle123.setBackgroundColor(if (activeTab == 0) colorActive else colorInactive)
-        btnToggle123.setTextColor(if (activeTab == 0) textActive else textInactive)
+                    btnHistory.isEnabled = true
+                    btnHistory.alpha = 1f
+                }
+            }
+        }
     }
 
-    private fun initUI() {
-        setupTabs()
-        setupModeSwitch()
-        setupDiffVarButton()
-        setupButtons()
-        setupLimitsSync()
-    }
-
-    private fun observeState() {
+    private fun observeCalculatorState() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.state.collect { state ->
@@ -127,7 +124,6 @@ class MainActivity : AppCompatActivity() {
             renderLatex(webviewPreview, "")
             return
         }
-
         val modeSymbol = if (state.isDefinite) {
             val up = state.upperLimit.ifEmpty { "b" }
             val low = state.lowerLimit.ifEmpty { "a" }
@@ -143,13 +139,11 @@ class MainActivity : AppCompatActivity() {
         listOf(webviewPreview, webviewResult).forEach { webView ->
             webView.settings.javaScriptEnabled = true
             webView.setBackgroundColor(Color.TRANSPARENT)
-
             val html = """
                 <!DOCTYPE html>
                 <html>
                 <head>
                     <meta charset="utf-8">
-                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
                     <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
                     <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
                     <style>
@@ -178,34 +172,44 @@ class MainActivity : AppCompatActivity() {
         webView.evaluateJavascript(jsCode, null)
     }
 
+    private fun initUI() {
+        setupTabs()
+        setupModeSwitch()
+        setupDiffVarButton()
+        setupButtons()
+        setupLimitsSync()
+    }
+
     private fun setupTabs() {
         currentTab = 0
         layoutBasic.visibility = View.VISIBLE
         layoutLetters.visibility = View.GONE
         layoutFunctions.visibility = View.GONE
         updateTabButtons(0)
+        btnToggleABC.setOnClickListener { switchTab(1) }
+        btnToggleFunc.setOnClickListener { switchTab(2) }
+        btnToggle123.setOnClickListener { switchTab(0) }
+    }
 
-        btnToggleABC.setOnClickListener {
-            currentTab = 1
-            layoutBasic.visibility = View.GONE
-            layoutLetters.visibility = View.VISIBLE
-            layoutFunctions.visibility = View.GONE
-            updateTabButtons(1)
-        }
-        btnToggleFunc.setOnClickListener {
-            currentTab = 2
-            layoutBasic.visibility = View.GONE
-            layoutLetters.visibility = View.GONE
-            layoutFunctions.visibility = View.VISIBLE
-            updateTabButtons(2)
-        }
-        btnToggle123.setOnClickListener {
-            currentTab = 0
-            layoutBasic.visibility = View.VISIBLE
-            layoutLetters.visibility = View.GONE
-            layoutFunctions.visibility = View.GONE
-            updateTabButtons(0)
-        }
+    private fun switchTab(tab: Int) {
+        currentTab = tab
+        layoutBasic.visibility = if (tab == 0) View.VISIBLE else View.GONE
+        layoutLetters.visibility = if (tab == 1) View.VISIBLE else View.GONE
+        layoutFunctions.visibility = if (tab == 2) View.VISIBLE else View.GONE
+        updateTabButtons(tab)
+    }
+
+    private fun updateTabButtons(activeTab: Int) {
+        val colorActive = Color.parseColor("#00BFA5")
+        val colorInactive = Color.parseColor("#333333")
+        val textActive = Color.parseColor("#FFFFFF")
+        val textInactive = Color.parseColor("#B388FF")
+        btnToggleABC.setBackgroundColor(if (activeTab == 1) colorActive else colorInactive)
+        btnToggleABC.setTextColor(if (activeTab == 1) textActive else textInactive)
+        btnToggleFunc.setBackgroundColor(if (activeTab == 2) colorActive else colorInactive)
+        btnToggleFunc.setTextColor(if (activeTab == 2) textActive else textInactive)
+        btnToggle123.setBackgroundColor(if (activeTab == 0) colorActive else colorInactive)
+        btnToggle123.setTextColor(if (activeTab == 0) textActive else textInactive)
     }
 
     private fun setupModeSwitch() {
@@ -217,51 +221,42 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupLimitsSync() {
-        val limitsWatcher = object : TextWatcher {
+        val watcher = object : TextWatcher {
             override fun afterTextChanged(s: Editable?) {
                 viewModel.setLimits(etLowerLimit.text.toString(), etUpperLimit.text.toString())
             }
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
         }
-        etLowerLimit.addTextChangedListener(limitsWatcher)
-        etUpperLimit.addTextChangedListener(limitsWatcher)
+        etLowerLimit.addTextChangedListener(watcher)
+        etUpperLimit.addTextChangedListener(watcher)
     }
 
     private fun setupDiffVarButton() {
         btnDiffVar.setOnClickListener {
             isSelectingVarMode = true
             btnDiffVar.setBackgroundColor(Color.parseColor("#4CAF50"))
-            currentTab = 1
-            layoutBasic.visibility = View.GONE
-            layoutLetters.visibility = View.VISIBLE
-            layoutFunctions.visibility = View.GONE
-            updateTabButtons(1)
+            switchTab(1)
             Toast.makeText(this, "Выберите переменную (a-z)", Toast.LENGTH_SHORT).show()
         }
     }
 
     private fun setupButtons() {
-        val basicButtons: List<Pair<Int, String>> = listOf(
-            Pair(R.id.btn0, "0"), Pair(R.id.btn1, "1"), Pair(R.id.btn2, "2"), Pair(R.id.btn3, "3"),
-            Pair(R.id.btn4, "4"), Pair(R.id.btn5, "5"), Pair(R.id.btn6, "6"), Pair(R.id.btn7, "7"),
-            Pair(R.id.btn8, "8"), Pair(R.id.btn9, "9"), Pair(R.id.btnDot, "."),
-            Pair(R.id.btnAdd, " + "), Pair(R.id.btnSub, " - "), Pair(R.id.btnMul, " * "),
-            Pair(R.id.btnDiv, " / "), Pair(R.id.btnOpen, "("), Pair(R.id.btnClose, ")"),
-            Pair(R.id.btnPow, "^"), Pair(R.id.btnSqrt, "sqrt("), Pair(R.id.btnAbs, "abs("),
-            Pair(R.id.btnPi, "pi"), Pair(R.id.btnE, "e"), Pair(R.id.btnFrac, "()/()")
+        val basicButtons = listOf(
+            R.id.btn0 to "0", R.id.btn1 to "1", R.id.btn2 to "2", R.id.btn3 to "3",
+            R.id.btn4 to "4", R.id.btn5 to "5", R.id.btn6 to "6", R.id.btn7 to "7",
+            R.id.btn8 to "8", R.id.btn9 to "9", R.id.btnDot to ".",
+            R.id.btnAdd to " + ", R.id.btnSub to " - ", R.id.btnMul to " * ",
+            R.id.btnDiv to " / ", R.id.btnOpen to "(", R.id.btnClose to ")",
+            R.id.btnPow to "^", R.id.btnSqrt to "sqrt(", R.id.btnAbs to "abs(",
+            R.id.btnPi to "pi", R.id.btnE to "e", R.id.btnFrac to "()/()"
         )
-
         basicButtons.forEach { (id, text) ->
             findViewById<Button>(id).setOnClickListener {
-                if (text == "()/()") {
-                    viewModel.appendInput("()/()", "\\frac{}{}")
-                } else {
-                    val latexMap = mapOf(
-                        "*" to "\\cdot ", "pi" to "\\pi", "sqrt(" to "\\sqrt{",
-                        "abs(" to "\\left|", "^" to "^{"
-                    )
-                    val latex = latexMap[text] ?: text
+                if (text == "()/()") viewModel.appendInput("()/()", "\\frac{}{}")
+                else {
+                    val latex = mapOf("*" to "\\cdot ", "pi" to "\\pi", "sqrt(" to "\\sqrt{",
+                        "abs(" to "\\left|", "^" to "^{")[text] ?: text
                     viewModel.appendInput(text, latex)
                 }
             }
@@ -271,76 +266,46 @@ class MainActivity : AppCompatActivity() {
             if (isSelectingVarMode) selectVariable("x") else viewModel.appendInput("x", "x")
         }
 
-        val latinLetters: List<Pair<Int, String>> = listOf(
-            R.id.btnVarA to "a", R.id.btnVarB to "b", R.id.btnVarC to "c",
-            R.id.btnVarD to "d", R.id.btnVarE to "e", R.id.btnVarF to "f",
-            R.id.btnVarG to "g", R.id.btnVarH to "h", R.id.btnVarI to "i",
-            R.id.btnVarJ to "j", R.id.btnVarK to "k", R.id.btnVarL to "l",
-            R.id.btnVarM to "m", R.id.btnVarN to "n", R.id.btnVarO to "o",
-            R.id.btnVarP to "p", R.id.btnVarQ to "q", R.id.btnVarR to "r",
-            R.id.btnVarS to "s", R.id.btnVarT to "t", R.id.btnVarU to "u",
-            R.id.btnVarV to "v", R.id.btnVarW to "w", R.id.btnVarX2 to "x",
+        val letters = listOf(
+            R.id.btnVarA to "a", R.id.btnVarB to "b", R.id.btnVarC to "c", R.id.btnVarD to "d",
+            R.id.btnVarE to "e", R.id.btnVarF to "f", R.id.btnVarG to "g", R.id.btnVarH to "h",
+            R.id.btnVarI to "i", R.id.btnVarJ to "j", R.id.btnVarK to "k", R.id.btnVarL to "l",
+            R.id.btnVarM to "m", R.id.btnVarN to "n", R.id.btnVarO to "o", R.id.btnVarP to "p",
+            R.id.btnVarQ to "q", R.id.btnVarR to "r", R.id.btnVarS to "s", R.id.btnVarT to "t",
+            R.id.btnVarU to "u", R.id.btnVarV to "v", R.id.btnVarW to "w", R.id.btnVarX2 to "x",
             R.id.btnVarY to "y", R.id.btnVarZ to "z"
         )
-
-        latinLetters.forEach { (id, char) ->
+        letters.forEach { (id, char) ->
             findViewById<Button>(id).setOnClickListener {
                 if (isSelectingVarMode) selectVariable(char) else viewModel.appendInput(char, char)
             }
         }
 
-        // Греческие буквы (если есть в твоём XML)
-        val greekMap = mapOf(
-            R.id.btnGreekAlpha to Pair("α", "\\alpha"),
-            R.id.btnGreekBeta to Pair("β", "\\beta")
+        // Функции
+        val functions = mapOf(
+            R.id.btnSin to Pair("sin(", "\\sin\\left("), R.id.btnCos to Pair("cos(", "\\cos\\left("),
+            R.id.btnTan to Pair("tan(", "\\tan\\left("), R.id.btnCot to Pair("cot(", "\\cot\\left("),
+            R.id.btnAsin to Pair("asin(", "\\arcsin\\left("), R.id.btnAcos to Pair("acos(", "\\arccos\\left("),
+            R.id.btnAtan to Pair("atan(", "\\arctan\\left("), R.id.btnAcot to Pair("acot(", "\\arccot\\left("),
+            R.id.btnLog to Pair("log(", "\\log\\left("), R.id.btnLn to Pair("ln(", "\\ln\\left("),
+            R.id.btnExp to Pair("exp(", "e^{"), R.id.btnSqrtAdv to Pair("sqrt(", "\\sqrt{"),
+            R.id.btnFracAdv to Pair("()/()", "\\frac{}{}"), R.id.btnAbsAdv to Pair("abs(", "\\left|"),
+            R.id.btnPowAdv to Pair("^", "^{"), R.id.btnPiAdv to Pair("pi", "\\pi"),
+            R.id.btnEAdv to Pair("e", "e"), R.id.btnOpenAdv to Pair("(", "("),
+            R.id.btnCloseAdv to Pair(")", ")"), R.id.btnDotAdv to Pair(".", ".")
         )
-        greekMap.forEach { (id, pair) ->
-            val text = pair.first
-            val latex = pair.second
+        functions.forEach { (id, pair) ->
             findViewById<Button>(id).setOnClickListener {
-                if (isSelectingVarMode) selectVariable(text) else viewModel.appendInput(text, latex)
+                if (pair.first == "()/()") viewModel.appendInput("()/()", "\\frac{}{}")
+                else viewModel.appendInput(pair.first, pair.second)
             }
         }
 
         findViewById<Button>(R.id.btnBackAdv).setOnClickListener { viewModel.backspace() }
         findViewById<Button>(R.id.btnCAdv).setOnClickListener { viewModel.clear() }
-
-        val functions: Map<Int, Pair<String, String>> = mapOf(
-            R.id.btnSin to Pair("sin(", "\\sin\\left("),
-            R.id.btnCos to Pair("cos(", "\\cos\\left("),
-            R.id.btnTan to Pair("tan(", "\\tan\\left("),
-            R.id.btnCot to Pair("cot(", "\\cot\\left("),
-            R.id.btnAsin to Pair("asin(", "\\arcsin\\left("),
-            R.id.btnAcos to Pair("acos(", "\\arccos\\left("),
-            R.id.btnAtan to Pair("atan(", "\\arctan\\left("),
-            R.id.btnAcot to Pair("acot(", "\\arccot\\left("),
-            R.id.btnLog to Pair("log(", "\\log\\left("),
-            R.id.btnLn to Pair("ln(", "\\ln\\left("),
-            R.id.btnExp to Pair("exp(", "e^{"),
-            R.id.btnSqrtAdv to Pair("sqrt(", "\\sqrt{"),
-            R.id.btnFracAdv to Pair("()/()", "\\frac{}{}"),
-            R.id.btnAbsAdv to Pair("abs(", "\\left|"),
-            R.id.btnPowAdv to Pair("^", "^{"),
-            R.id.btnPiAdv to Pair("pi", "\\pi"),
-            R.id.btnEAdv to Pair("e", "e"),
-            R.id.btnOpenAdv to Pair("(", "("),
-            R.id.btnCloseAdv to Pair(")", ")"),
-            R.id.btnDotAdv to Pair(".", ".")
-        )
-
-        functions.forEach { (id, pair) ->
-            val text = pair.first
-            val latex = pair.second
-            findViewById<Button>(id).setOnClickListener {
-                if (text == "()/()") viewModel.appendInput("()/()", "\\frac{}{}")
-                else viewModel.appendInput(text, latex)
-            }
-        }
-
         findViewById<Button>(R.id.btnBackAdv2).setOnClickListener { viewModel.backspace() }
         findViewById<Button>(R.id.btnCAdv2).setOnClickListener { viewModel.clear() }
         findViewById<Button>(R.id.btnCalcAdv).setOnClickListener { viewModel.calculate() }
-
         findViewById<Button>(R.id.btnC).setOnClickListener { viewModel.clear() }
         findViewById<Button>(R.id.btnBack).setOnClickListener { viewModel.backspace() }
         findViewById<Button>(R.id.btnCalc).setOnClickListener { viewModel.calculate() }
@@ -350,6 +315,11 @@ class MainActivity : AppCompatActivity() {
             screenResult.visibility = View.GONE
             screenInput.visibility = View.VISIBLE
         }
+
+        btnHistory.setOnClickListener {
+            val intent = Intent(this@MainActivity, HistoryActivity::class.java)
+            startActivity(intent)
+        }
     }
 
     private fun selectVariable(variable: String) {
@@ -357,11 +327,7 @@ class MainActivity : AppCompatActivity() {
         btnDiffVar.text = "d$variable"
         isSelectingVarMode = false
         btnDiffVar.setBackgroundColor(Color.parseColor("#00BFA5"))
-        currentTab = 0
-        layoutBasic.visibility = View.VISIBLE
-        layoutLetters.visibility = View.GONE
-        layoutFunctions.visibility = View.GONE
-        updateTabButtons(0)
+        switchTab(0)
         Toast.makeText(this, "Переменная: $variable", Toast.LENGTH_SHORT).show()
     }
 }
