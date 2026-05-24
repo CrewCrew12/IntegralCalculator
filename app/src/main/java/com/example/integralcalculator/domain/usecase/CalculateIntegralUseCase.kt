@@ -2,8 +2,9 @@ package com.example.integralcalculator.domain.usecase
 
 import com.example.integralcalculator.domain.model.IntegralResult
 import com.example.integralcalculator.domain.repository.IntegralRepository
+import javax.inject.Inject
 
-class CalculateIntegralUseCase(
+class CalculateIntegralUseCase @Inject constructor(
     private val repository: IntegralRepository
 ) {
     suspend operator fun invoke(

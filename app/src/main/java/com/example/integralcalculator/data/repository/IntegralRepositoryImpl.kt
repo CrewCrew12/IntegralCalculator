@@ -6,8 +6,12 @@ import com.example.integralcalculator.domain.model.IntegralResult
 import com.example.integralcalculator.domain.repository.IntegralRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import javax.inject.Inject
+import javax.inject.Singleton
 
-class IntegralRepositoryImpl(
+
+@Singleton
+class IntegralRepositoryImpl @Inject constructor(
     private val dataSource: PythonSolverDataSource
 ) : IntegralRepository {
 
