@@ -28,38 +28,43 @@ class CalculatorViewModel @Inject constructor(
     private fun inputToLatex(raw: String): String {
         if (raw.isEmpty()) return ""
         android.util.Log.d("CalculatorVM", "Converting: $raw")
+
         var latex = raw
             .replace("()/()", "\\frac{}{}")
             .replace("sqrt(", "\\sqrt{")
-            .replace("sin(", "\\sin\\left(")
-            .replace("cos(", "\\cos\\left(")
-            .replace("tan(", "\\tan\\left(")
-            .replace("cot(", "\\cot\\left(")
-            .replace("asin(", "\\arcsin\\left(")
-            .replace("acos(", "\\arccos\\left(")
-            .replace("atan(", "\\arctan\\left(")
-            .replace("acot(", "\\arccot\\left(")
-            .replace("log(", "\\log\\left(")
-            .replace("ln(", "\\ln\\left(")
+            .replace("sin(", "\\sin(")
+            .replace("cos(", "\\cos(")
+            .replace("tan(", "\\tan(")
+            .replace("cot(", "\\cot(")
+            .replace("asin(", "\\arcsin(")
+            .replace("acos(", "\\arccos(")
+            .replace("atan(", "\\arctan(")
+            .replace("acot(", "\\arccot(")
+            .replace("log(", "\\log(")
+            .replace("ln(", "\\ln(")
             .replace("exp(", "e^{")
-            .replace("abs(", "\\left|")
+            .replace("abs(", "|")
             .replace("pi", "\\pi")
             .replace("α", "\\alpha")
             .replace("β", "\\beta")
             .replace("^", "^{")
             .replace("*", "\\cdot ")
-        val leftCount = latex.count { it == '(' }
-        val rightCount = latex.count { it == ')' }
+
+        var result = latex
+        val leftCount = result.count { it == '(' }
+        val rightCount = result.count { it == ')' }
         if (leftCount > rightCount) {
-            latex += ")".repeat(leftCount - rightCount)
+            result += ")".repeat(leftCount - rightCount)
         }
-        val openBraceCount = latex.count { it == '{' }
-        val closeBraceCount = latex.count { it == '}' }
+
+        val openBraceCount = result.count { it == '{' }
+        val closeBraceCount = result.count { it == '}' }
         if (openBraceCount > closeBraceCount) {
-            latex += "}".repeat(openBraceCount - closeBraceCount)
+            result += "}".repeat(openBraceCount - closeBraceCount)
         }
-        android.util.Log.d("CalculatorVM", "Result: $latex")
-        return latex
+
+        android.util.Log.d("CalculatorVM", "Result: $result")
+        return result
     }
 
     fun appendInput(text: String, latex: String) {
@@ -105,7 +110,6 @@ class CalculatorViewModel @Inject constructor(
                 current.isDefinite, current.lowerLimit, current.upperLimit
             )
 
-            // 🔥 СОХРАНЯЕМ В ИСТОРИЮ, если пользователь авторизован
             if (result.success) {
                 val userId = getCurrentUserUseCase()
                 if (userId != null) {
@@ -114,7 +118,9 @@ class CalculatorViewModel @Inject constructor(
                         variable = current.integrationVar,
                         result = result.latex,
                         timestamp = System.currentTimeMillis(),
-                        isDefinite = current.isDefinite
+                        isDefinite = current.isDefinite,
+                        lowerLimit = current.lowerLimit,
+                        upperLimit = current.upperLimit
                     )
                     saveHistoryUseCase(userId, record)
                 }

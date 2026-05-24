@@ -6,5 +6,7 @@ data class CalcRecord(
     val variable: String,
     val result: String,
     val timestamp: Long,
-    val isDefinite: Boolean
+    val isDefinite: Boolean,
+    val lowerLimit: String = "",
+    val upperLimit: String = ""
 )

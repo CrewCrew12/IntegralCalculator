@@ -3,7 +3,6 @@ package com.example.integralcalculator.data.datasource
 import android.content.Context
 import com.chaquo.python.Python
 import com.chaquo.python.android.AndroidPlatform
-import com.chaquo.python.PyObject
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -17,15 +16,15 @@ class PythonSolverDataSource @Inject constructor(
         }
     }
 
-    fun callIndefinite(expr: String, variable: String): PyObject {
+    fun callIndefinite(expr: String, variable: String): String {
         val py = Python.getInstance()
         val solver = py.getModule("solver")
-        return solver.callAttr("calculate_indefinite", expr, variable) as PyObject
+        return solver.callAttr("calculate_indefinite", expr, variable).toString()
     }
 
-    fun callDefinite(expr: String, variable: String, lower: String, upper: String): PyObject {
+    fun callDefinite(expr: String, variable: String, lower: String, upper: String): String {
         val py = Python.getInstance()
         val solver = py.getModule("solver")
-        return solver.callAttr("calculate_definite", expr, variable, lower, upper) as PyObject
+        return solver.callAttr("calculate_definite", expr, variable, lower, upper).toString()
     }
 }

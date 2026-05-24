@@ -11,7 +11,6 @@ import dagger.hilt.android.AndroidEntryPoint
 class HistoryActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
         setContent {
             MaterialTheme {
                 Surface(color = MaterialTheme.colorScheme.background) {
