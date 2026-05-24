@@ -26,7 +26,9 @@ class CalculatorViewModel @Inject constructor(
     val state: StateFlow<CalculatorState> = _state.asStateFlow()
 
     private fun inputToLatex(raw: String): String {
-        return raw
+        if (raw.isEmpty()) return ""
+        android.util.Log.d("CalculatorVM", "Converting: $raw")
+        var latex = raw
             .replace("()/()", "\\frac{}{}")
             .replace("sqrt(", "\\sqrt{")
             .replace("sin(", "\\sin\\left(")
@@ -46,6 +48,18 @@ class CalculatorViewModel @Inject constructor(
             .replace("β", "\\beta")
             .replace("^", "^{")
             .replace("*", "\\cdot ")
+        val leftCount = latex.count { it == '(' }
+        val rightCount = latex.count { it == ')' }
+        if (leftCount > rightCount) {
+            latex += ")".repeat(leftCount - rightCount)
+        }
+        val openBraceCount = latex.count { it == '{' }
+        val closeBraceCount = latex.count { it == '}' }
+        if (openBraceCount > closeBraceCount) {
+            latex += "}".repeat(openBraceCount - closeBraceCount)
+        }
+        android.util.Log.d("CalculatorVM", "Result: $latex")
+        return latex
     }
 
     fun appendInput(text: String, latex: String) {

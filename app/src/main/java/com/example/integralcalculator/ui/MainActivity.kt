@@ -6,6 +6,7 @@ import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.View
+import android.view.WindowManager
 import android.webkit.WebView
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
@@ -21,6 +22,8 @@ import com.example.integralcalculator.presentation.viewmodel.AuthViewModel
 import com.example.integralcalculator.presentation.viewmodel.CalculatorViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
+import android.content.Context
+import android.view.inputmethod.InputMethodManager
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
@@ -59,8 +62,15 @@ class MainActivity : AppCompatActivity() {
         initUI()
         observeAuthState()
         observeCalculatorState()
+        window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN)
+        webviewPreview.postDelayed({
+            updatePreview(viewModel.state.value)
+        }, 500)
     }
-
+    override fun onResume() {
+        super.onResume()
+        authViewModel.refreshAuthStatus()
+    }
     private fun bindViews() {
         webviewPreview = findViewById(R.id.webviewPreview)
         webviewResult = findViewById(R.id.webviewResult)
@@ -85,14 +95,16 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 authViewModel.uiState.collect { authState ->
-                    if (!authState.isLoggedIn) {
-                        startActivity(Intent(this@MainActivity, AuthActivity::class.java))
-                        finish()
-                        return@collect
-                    }
+                    android.util.Log.d("MainActivity", "Auth state: isLoggedIn=${authState.isLoggedIn}")
 
-                    btnHistory.isEnabled = true
-                    btnHistory.alpha = 1f
+                    if (!authState.isLoggedIn) {
+                        val intent = Intent(this@MainActivity, AuthActivity::class.java)
+                        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                        startActivity(intent)
+                    } else {
+                        btnHistory.isEnabled = true
+                        btnHistory.alpha = 1f
+                    }
                 }
             }
         }
@@ -118,42 +130,123 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
-
     private fun updatePreview(state: CalculatorState) {
-        if (state.rawInput.isEmpty()) {
+        val fullLatex = buildFullLatex(state)
+        android.util.Log.d("Calculator", "Rendering: $fullLatex")
+        if (fullLatex.isEmpty()) {
             renderLatex(webviewPreview, "")
             return
         }
-        val modeSymbol = if (state.isDefinite) {
-            val up = state.upperLimit.ifEmpty { "b" }
-            val low = state.lowerLimit.ifEmpty { "a" }
-            "\\int_{${low}}^{${up}}"
+        renderLatex(webviewPreview, fullLatex)
+    }
+    private fun buildFullLatex(state: CalculatorState): String {
+        val expression = if (state.latexPreview.isNotEmpty()) {
+            state.latexPreview
+        } else if (state.rawInput.isNotEmpty()) {
+            rawInputToLatex(state.rawInput)
+        } else {
+            ""
+        }
+        val integralSymbol = if (state.isDefinite) {
+            val lower = state.lowerLimit.ifEmpty { "a" }
+            val upper = state.upperLimit.ifEmpty { "b" }
+            "\\int_{${lower}}^{${upper}}"
         } else {
             "\\int"
         }
-        val fullLatex = "${modeSymbol} \\left( ${state.latexPreview} \\right) \\, d${state.integrationVar}"
-        renderLatex(webviewPreview, fullLatex)
+        if (expression.isEmpty()) {
+            return "$integralSymbol d${state.integrationVar}"
+        }
+        return "$integralSymbol \\left( $expression \\right) d${state.integrationVar}"
     }
+    private fun rawInputToLatex(raw: String): String {
+        if (raw.isEmpty()) return ""
 
+        return raw
+            .replace("()/()", "\\frac{}{}")
+            .replace("sqrt(", "\\sqrt{")
+            .replace("sin(", "\\sin\\left(")
+            .replace("cos(", "\\cos\\left(")
+            .replace("tan(", "\\tan\\left(")
+            .replace("cot(", "\\cot\\left(")
+            .replace("asin(", "\\arcsin\\left(")
+            .replace("acos(", "\\arccos\\left(")
+            .replace("atan(", "\\arctan\\left(")
+            .replace("acot(", "\\arccot\\left(")
+            .replace("log(", "\\log\\left(")
+            .replace("ln(", "\\ln\\left(")
+            .replace("exp(", "e^{")
+            .replace("abs(", "\\left|")
+            .replace("pi", "\\pi")
+            .replace("α", "\\alpha")
+            .replace("β", "\\beta")
+            .replace("^", "^{")
+            .replace("*", "\\cdot ")
+            .let { latex ->
+                var result = latex
+                val leftCount = result.count { it == '(' }
+                val rightCount = result.count { it == ')' }
+                if (leftCount > rightCount) {
+                    result += ")".repeat(leftCount - rightCount)
+                }
+                val openBraceCount = result.count { it == '{' }
+                val closeBraceCount = result.count { it == '}' }
+                if (openBraceCount > closeBraceCount) {
+                    result += "}".repeat(openBraceCount - closeBraceCount)
+                }
+                result
+            }
+    }
     private fun setupWebViews() {
         listOf(webviewPreview, webviewResult).forEach { webView ->
             webView.settings.javaScriptEnabled = true
+            webView.settings.domStorageEnabled = true
+            webView.settings.loadWithOverviewMode = true
+            webView.settings.useWideViewPort = true
             webView.setBackgroundColor(Color.TRANSPARENT)
+
             val html = """
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <meta charset="utf-8">
-                    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
-                    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-                    <style>
-                        body { margin: 0; padding: 10px; color: #fff; font-size: 18px; text-align: center; background-color: transparent; }
-                        .MathJax_Display { margin: 0 !important; overflow-x: auto; overflow-y: hidden; }
-                    </style>
-                </head>
-                <body><div id="math-container"></div></body>
-                </html>
-            """.trimIndent()
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="utf-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <script>
+                    window.MathJax = {
+                        tex: {
+                            inlineMath: [['$', '$'], ['\\(', '\\)']],
+                            displayMath: [['$$', '$$'], ['\\[', '\\]']]
+                        },
+                        options: {
+                            ignoreHtmlClass: 'tex2jax_ignore',
+                            processHtmlClass: 'tex2jax_process'
+                        }
+                    };
+                </script>
+                <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script"></script>
+                <style>
+                    body { 
+                        margin: 0; 
+                        padding: 10px; 
+                        color: #ffffff; 
+                        font-size: 20px; 
+                        text-align: center; 
+                        background-color: transparent;
+                        font-family: 'Times New Roman', serif;
+                    }
+                    .MathJax_Display { 
+                        margin: 0 !important; 
+                        overflow-x: auto; 
+                        overflow-y: hidden;
+                    }
+                </style>
+            </head>
+            <body>
+                <div id="math-container"></div>
+            </body>
+            </html>
+        """.trimIndent()
+
             webView.loadDataWithBaseURL(null, html, "text/html", "utf-8", null)
         }
     }
@@ -217,6 +310,10 @@ class MainActivity : AppCompatActivity() {
             val isDefinite = checkedId == R.id.rbDefinite
             llLimits.visibility = if (isDefinite) View.VISIBLE else View.GONE
             viewModel.setMode(isDefinite)
+            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            currentFocus?.let { view ->
+                imm.hideSoftInputFromWindow(view.windowToken, InputMethodManager.HIDE_NOT_ALWAYS)
+            }
         }
     }
 
@@ -280,8 +377,6 @@ class MainActivity : AppCompatActivity() {
                 if (isSelectingVarMode) selectVariable(char) else viewModel.appendInput(char, char)
             }
         }
-
-        // Функции
         val functions = mapOf(
             R.id.btnSin to Pair("sin(", "\\sin\\left("), R.id.btnCos to Pair("cos(", "\\cos\\left("),
             R.id.btnTan to Pair("tan(", "\\tan\\left("), R.id.btnCot to Pair("cot(", "\\cot\\left("),
@@ -315,13 +410,11 @@ class MainActivity : AppCompatActivity() {
             screenResult.visibility = View.GONE
             screenInput.visibility = View.VISIBLE
         }
-
         btnHistory.setOnClickListener {
             val intent = Intent(this@MainActivity, HistoryActivity::class.java)
             startActivity(intent)
         }
     }
-
     private fun selectVariable(variable: String) {
         viewModel.setVariable(variable)
         btnDiffVar.text = "d$variable"

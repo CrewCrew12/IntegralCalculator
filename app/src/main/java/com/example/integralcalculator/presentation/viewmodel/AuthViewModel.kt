@@ -34,52 +34,100 @@ class AuthViewModel @Inject constructor(
     }
 
     private fun checkAuthStatus() {
-        val userId = getCurrentUserUseCase()
-        _uiState.update {
-            it.copy(
-                isLoggedIn = userId != null,
-                userId = userId
-            )
+        viewModelScope.launch {
+            val userId = getCurrentUserUseCase()
+            _uiState.update {
+                it.copy(
+                    isLoggedIn = userId != null,
+                    userId = userId
+                )
+            }
         }
     }
-
+    fun refreshAuthStatus() {
+        viewModelScope.launch {
+            val userId = getCurrentUserUseCase()
+            android.util.Log.d("AuthViewModel", "refreshAuthStatus: userId=$userId")
+            _uiState.update {
+                it.copy(
+                    isLoggedIn = userId != null,
+                    userId = userId
+                )
+            }
+        }
+    }
     fun login(email: String, password: String) {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
+
             val result = loginUseCase(email, password)
+
             when {
                 result.isSuccess -> {
                     val userId = result.getOrNull()
                     _uiState.update {
-                        it.copy(isLoading = false, isLoggedIn = true, userId = userId)
+                        it.copy(
+                            isLoading = false,
+                            isLoggedIn = true,
+                            userId = userId,
+                            error = null
+                        )
                     }
                 }
                 result.isFailure -> {
-                    val error = result.exceptionOrNull()?.message ?: "Неизвестная ошибка"
+                    val error = result.exceptionOrNull()?.message ?: "Ошибка входа. Попробуйте еще раз"
                     _uiState.update {
-                        it.copy(isLoading = false, error = error)
+                        it.copy(
+                            isLoading = false,
+                            error = error
+                        )
                     }
                 }
             }
         }
     }
+
     fun register(email: String, password: String) {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
+
             val result = registerUseCase(email, password)
+
             when {
                 result.isSuccess -> {
                     val userId = result.getOrNull()
                     _uiState.update {
-                        it.copy(isLoading = false, isLoggedIn = true, userId = userId)
+                        it.copy(
+                            isLoading = false,
+                            isLoggedIn = true,
+                            userId = userId,
+                            error = null
+                        )
                     }
                 }
                 result.isFailure -> {
-                    val error = result.exceptionOrNull()?.message ?: "Неизвестная ошибка"
+                    val error = result.exceptionOrNull()?.message ?: "Ошибка регистрации. Попробуйте снова"
                     _uiState.update {
-                        it.copy(isLoading = false, error = error)
+                        it.copy(
+                            isLoading = false,
+                            error = error
+                        )
                     }
                 }
+            }
+        }
+    }
+    fun clearError() {
+        _uiState.update { it.copy(error = null) }
+    }
+    fun logout() {
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(
+                    isLoggedIn = false,
+                    userId = null,
+                    error = null
+                )
             }
         }
     }

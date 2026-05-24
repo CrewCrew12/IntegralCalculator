@@ -6,6 +6,7 @@ import androidx.activity.compose.setContent
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import dagger.hilt.android.AndroidEntryPoint
+import androidx.compose.runtime.*
 
 @AndroidEntryPoint
 class AuthActivity : ComponentActivity() {
@@ -14,9 +15,21 @@ class AuthActivity : ComponentActivity() {
         setContent {
             MaterialTheme {
                 Surface(color = MaterialTheme.colorScheme.background) {
-                    AuthScreen(onAuthSuccess = {
-                        finish()
-                    })
+                    var showLoading by remember { mutableStateOf(false) }
+
+                    if (!showLoading) {
+                        AuthScreen(
+                            onAuthSuccess = {
+                                showLoading = true
+                            }
+                        )
+                    } else {
+                        LoadingScreen(
+                            onLoadingComplete = {
+                                finish()
+                            }
+                        )
+                    }
                 }
             }
         }

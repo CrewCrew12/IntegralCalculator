@@ -56,7 +56,10 @@
                     android:textColor="#FFF"
                     android:textSize="12sp"
                     android:gravity="center"
-                    android:background="#333"/>
+                    android:background="#333"
+                    android:focusable="false"
+                    android:clickable="false"
+                    android:inputType="none" />
                 <EditText
                     android:id="@+id/etLowerLimit"
                     android:layout_width="50dp"
@@ -65,51 +68,10 @@
                     android:textColor="#FFF"
                     android:textSize="12sp"
                     android:gravity="center"
-                    android:background="#333"/>
-            </LinearLayout>
-
-            <View android:layout_width="0dp" android:layout_height="0dp" android:layout_weight="1"/>
-
-            <LinearLayout
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical">
-
-                <Button
-                    android:id="@+id/btnToggleABC"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="abc"
                     android:background="#333"
-                    android:textColor="#B388FF"
-                    android:textSize="12sp"
-                    android:paddingStart="10dp"
-                    android:paddingEnd="10dp"
-                    android:layout_marginEnd="4dp"/>
-
-                <Button
-                    android:id="@+id/btnToggleFunc"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="f(x)"
-                    android:background="#333"
-                    android:textColor="#B388FF"
-                    android:textSize="12sp"
-                    android:paddingStart="10dp"
-                    android:paddingEnd="10dp"
-                    android:layout_marginEnd="4dp"/>
-
-                <Button
-                    android:id="@+id/btnToggle123"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="123"
-                    android:background="#00BFA5"
-                    android:textColor="#FFFFFF"
-                    android:textSize="12sp"
-                    android:paddingStart="10dp"
-                    android:paddingEnd="10dp"/>
+                    android:focusable="false"
+                    android:clickable="false"
+                    android:inputType="none" />
             </LinearLayout>
         </LinearLayout>
 
@@ -121,6 +83,48 @@
             android:background="#1E1E1E"
             android:layout_marginBottom="4dp"/>
 
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:layout_marginTop="4dp"
+            android:layout_marginBottom="4dp">
+
+            <Button
+                android:id="@+id/btnToggle123"
+                android:layout_width="0dp"
+                android:layout_height="50dp"
+                android:layout_weight="1"
+                android:text="123"
+                android:textSize="16sp"
+                android:textColor="#FFFFFF"
+                android:background="#333333"
+                android:layout_margin="2dp"/>
+
+            <Button
+                android:id="@+id/btnToggleABC"
+                android:layout_width="0dp"
+                android:layout_height="50dp"
+                android:layout_weight="1"
+                android:text="ABC"
+                android:textSize="16sp"
+                android:textColor="#FFFFFF"
+                android:background="#333333"
+                android:layout_margin="2dp"/>
+
+            <Button
+                android:id="@+id/btnToggleFunc"
+                android:layout_width="0dp"
+                android:layout_height="50dp"
+                android:layout_weight="1"
+                android:text="FUNC"
+                android:textSize="16sp"
+                android:textColor="#FFFFFF"
+                android:background="#333333"
+                android:layout_margin="2dp"/>
+
+        </LinearLayout>
         <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="0dp"
@@ -491,7 +495,6 @@
                 android:alignmentMode="alignMargins"
                 android:columnOrderPreserved="false"
                 android:visibility="gone">
-
                 <Button android:id="@+id/btnVarA" android:layout_width="0dp" android:layout_height="0dp" android:text="a" android:layout_columnWeight="1" android:layout_rowWeight="1" android:layout_margin="2dp" android:background="#333" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center"/>
                 <Button android:id="@+id/btnVarB" android:layout_width="0dp" android:layout_height="0dp" android:text="b" android:layout_columnWeight="1" android:layout_rowWeight="1" android:layout_margin="2dp" android:background="#333" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center"/>
                 <Button android:id="@+id/btnVarC" android:layout_width="0dp" android:layout_height="0dp" android:text="c" android:layout_columnWeight="1" android:layout_rowWeight="1" android:layout_margin="2dp" android:background="#333" android:textColor="#FFFFFF" android:textSize="18sp" android:gravity="center"/>
@@ -538,7 +541,6 @@
                 android:alignmentMode="alignMargins"
                 android:columnOrderPreserved="false"
                 android:visibility="gone">
-
                 <Button android:id="@+id/btnSin" android:layout_width="0dp" android:layout_height="0dp" android:text="sin" android:layout_columnWeight="1" android:layout_rowWeight="1" android:layout_margin="2dp" android:background="#2C2C2C" android:textColor="#B388FF"/>
                 <Button android:id="@+id/btnCos" android:layout_width="0dp" android:layout_height="0dp" android:text="cos" android:layout_columnWeight="1" android:layout_rowWeight="1" android:layout_margin="2dp" android:background="#2C2C2C" android:textColor="#B388FF"/>
                 <Button android:id="@+id/btnTan" android:layout_width="0dp" android:layout_height="0dp" android:text="tan" android:layout_columnWeight="1" android:layout_rowWeight="1" android:layout_margin="2dp" android:background="#2C2C2C" android:textColor="#B388FF"/>
