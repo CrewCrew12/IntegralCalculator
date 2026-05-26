@@ -15,9 +15,7 @@ class HistoryActivity : ComponentActivity() {
             MaterialTheme {
                 Surface(color = MaterialTheme.colorScheme.background) {
                     HistoryScreen(
-                        onBack = { finish() },
-                        onItemClick = { record ->
-                        }
+                        onBack = { finish() }
                     )
                 }
             }

@@ -117,11 +117,10 @@ fun HistoryItem(record: CalcRecord, onClick: () -> Unit) {
             )
 
             Spacer(Modifier.height(4.dp))
-
             Text(
-                text = record.resultPlainText,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.primary,
+                text = "= ${record.result.take(50)}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -150,7 +149,9 @@ fun DetailScreen(
         }
 
         Card(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f),
             shape = MaterialTheme.shapes.large,
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surfaceVariant
@@ -196,18 +197,6 @@ fun DetailScreen(
                     style = MaterialTheme.typography.headlineSmall,
                     color = MaterialTheme.colorScheme.primary
                 )
-                if (record.isDefinite) {
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Text(
-                        text = "Пределы интегрирования",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = "Нижний: a, Верхний: b", // TODO: добавить limits в CalcRecord
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
             }
         }
     }
@@ -222,7 +211,7 @@ private fun buildShortExpression(record: CalcRecord): String {
 
 private fun buildFullExpression(record: CalcRecord): String {
     return if (record.isDefinite) {
-        "∫ ${record.expression} d${record.variable}  (от a до b)"
+        "∫ ${record.expression} d${record.variable}"
     } else {
         "∫ ${record.expression} d${record.variable}"
     }

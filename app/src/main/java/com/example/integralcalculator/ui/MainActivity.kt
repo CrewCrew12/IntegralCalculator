@@ -47,7 +47,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var layoutFunctions: GridLayout
     private lateinit var btnNewCalc: Button
     private lateinit var btnHistory: Button
+    private lateinit var btnCursorLeft: Button
+    private lateinit var btnCursorRight: Button
+    private lateinit var btnLimitDone: Button
 
+    private var activeLimitField: EditText? = null
     private var currentTab = 0
     private var isSelectingVarMode = false
 
@@ -62,6 +66,9 @@ class MainActivity : AppCompatActivity() {
         initUI()
         observeAuthState()
         observeCalculatorState()
+        setupCursorButtons()
+        setupLimitsInput()
+        setupLimitDoneButton()
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN)
 
         webviewPreview.postDelayed({
@@ -92,6 +99,55 @@ class MainActivity : AppCompatActivity() {
         btnToggleFunc = findViewById(R.id.btnToggleFun)
         btnToggle123 = findViewById(R.id.btnToggle123)
         btnHistory = findViewById(R.id.btnHistory)
+        btnCursorLeft = findViewById(R.id.btnCursorLeft)
+        btnCursorRight = findViewById(R.id.btnCursorRight)
+        btnLimitDone = findViewById(R.id.btnLimitDone)
+    }
+
+    private fun setupLimitsInput() {
+        etLowerLimit.showSoftInputOnFocus = false
+        etUpperLimit.showSoftInputOnFocus = false
+        etLowerLimit.setOnFocusChangeListener { _, hasFocus ->
+            activeLimitField = if (hasFocus) etLowerLimit else null
+            if (hasFocus) {
+                etLowerLimit.setBackgroundColor(Color.parseColor("#4CAF50"))
+                Toast.makeText(this, "Ввод нижнего предела", Toast.LENGTH_SHORT).show()
+            } else {
+                etLowerLimit.setBackgroundColor(Color.parseColor("#333333"))
+            }
+        }
+
+        etUpperLimit.setOnFocusChangeListener { _, hasFocus ->
+            activeLimitField = if (hasFocus) etUpperLimit else null
+            if (hasFocus) {
+                etUpperLimit.setBackgroundColor(Color.parseColor("#4CAF50"))
+                Toast.makeText(this, "Ввод верхнего предела", Toast.LENGTH_SHORT).show()
+            } else {
+                etUpperLimit.setBackgroundColor(Color.parseColor("#333333"))
+            }
+        }
+    }
+
+    private fun setupLimitDoneButton() {
+        btnLimitDone.setOnClickListener {
+            activeLimitField?.clearFocus()
+            activeLimitField = null
+            etLowerLimit.clearFocus()
+            etUpperLimit.clearFocus()
+            etLowerLimit.setBackgroundColor(Color.parseColor("#333333"))
+            etUpperLimit.setBackgroundColor(Color.parseColor("#333333"))
+            Toast.makeText(this, "Ввод пределов завершен", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun appendToLimit(text: String) {
+        activeLimitField?.let { field ->
+            val currentText = field.text.toString()
+            val newText = currentText + text
+            field.setText(newText)
+            field.setSelection(newText.length)
+            viewModel.setLimits(etLowerLimit.text.toString(), etUpperLimit.text.toString())
+        }
     }
 
     private fun observeAuthState() {
@@ -173,6 +229,16 @@ class MainActivity : AppCompatActivity() {
         }
 
         return "$integralSymbol ( $expression ) d${state.integrationVar}"
+    }
+
+    private fun setupCursorButtons() {
+        btnCursorLeft.setOnClickListener {
+            viewModel.moveCursorLeft()
+        }
+
+        btnCursorRight.setOnClickListener {
+            viewModel.moveCursorRight()
+        }
     }
 
     private fun setupWebViews() {
@@ -297,6 +363,7 @@ class MainActivity : AppCompatActivity() {
         val colorInactive = Color.parseColor("#333333")
         val textActive = Color.parseColor("#FFFFFF")
         val textInactive = Color.parseColor("#B388FF")
+
         btnToggleABC.setBackgroundColor(if (activeTab == 1) colorActive else colorInactive)
         btnToggleABC.setTextColor(if (activeTab == 1) textActive else textInactive)
         btnToggleFunc.setBackgroundColor(if (activeTab == 2) colorActive else colorInactive)
@@ -339,28 +406,39 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupButtons() {
+        val onButtonClick = { text: String, latex: String ->
+            if (activeLimitField != null) {
+                appendToLimit(text)
+            } else {
+                viewModel.appendInput(text, latex)
+            }
+        }
+
         val basicButtons = listOf(
             R.id.btn0 to "0", R.id.btn1 to "1", R.id.btn2 to "2", R.id.btn3 to "3",
             R.id.btn4 to "4", R.id.btn5 to "5", R.id.btn6 to "6", R.id.btn7 to "7",
             R.id.btn8 to "8", R.id.btn9 to "9", R.id.btnDot to ".",
-            R.id.btnAdd to " + ", R.id.btnSub to " - ", R.id.btnMul to " * ",
-            R.id.btnDiv to " / ", R.id.btnOpen to "(", R.id.btnClose to ")",
+            R.id.btnAdd to "+", R.id.btnSub to "-", R.id.btnMul to "*",
+            R.id.btnDiv to "/", R.id.btnOpen to "(", R.id.btnClose to ")",
             R.id.btnPow to "^", R.id.btnSqrt to "sqrt(", R.id.btnAbs to "abs(",
             R.id.btnPi to "pi", R.id.btnE to "e", R.id.btnFrac to "()/()"
         )
         basicButtons.forEach { (id, text) ->
             findViewById<Button>(id).setOnClickListener {
-                if (text == "()/()") viewModel.appendInput("()/()", "\\frac{}{}")
-                else {
-                    val latex = mapOf("*" to "\\cdot ", "pi" to "\\pi", "sqrt(" to "\\sqrt{",
-                        "abs(" to "\\left|", "^" to "^{")[text] ?: text
-                    viewModel.appendInput(text, latex)
+                when {
+                    text == "()/()" -> onButtonClick("()/()", "\\frac{}{}")
+                    text == "*" -> onButtonClick("*", "\\cdot ")
+                    text == "pi" -> onButtonClick("pi", "\\pi")
+                    text == "sqrt(" -> onButtonClick("sqrt(", "\\sqrt{")
+                    text == "abs(" -> onButtonClick("abs(", "\\left|")
+                    text == "^" -> onButtonClick("^", "^{")
+                    else -> onButtonClick(text, text)
                 }
             }
         }
 
         findViewById<Button>(R.id.btnVarX).setOnClickListener {
-            if (isSelectingVarMode) selectVariable("x") else viewModel.appendInput("x", "x")
+            if (isSelectingVarMode) selectVariable("x") else onButtonClick("x", "x")
         }
 
         val letters = listOf(
@@ -374,27 +452,27 @@ class MainActivity : AppCompatActivity() {
         )
         letters.forEach { (id, char) ->
             findViewById<Button>(id).setOnClickListener {
-                if (isSelectingVarMode) selectVariable(char) else viewModel.appendInput(char, char)
+                if (isSelectingVarMode) selectVariable(char) else onButtonClick(char, char)
             }
         }
 
         val functions = mapOf(
-            R.id.btnSin to Pair("sin(", "\\sin("),
-            R.id.btnCos to Pair("cos(", "\\cos("),
-            R.id.btnTan to Pair("tg(", "\\tg("),
-            R.id.btnCot to Pair("ctg(", "\\ctg("),
-            R.id.btnAsin to Pair("asin(", "\\arcsin("),
-            R.id.btnAcos to Pair("acos(", "\\arccos("),
-            R.id.btnAtg to Pair("atg(", "\\arctg("),
-            R.id.btnActg to Pair("actg(", "\\arcctg("),
-            R.id.btnLog to Pair("log(", "\\log("),
-            R.id.btnLn to Pair("ln(", "\\ln("),
-            R.id.btnExp to Pair("exp(", "e^{"),
-            R.id.btnSqrtAdv to Pair("sqrt(", "\\sqrt{"),
+            R.id.btnSin to Pair("sin(", "sin("),
+            R.id.btnCos to Pair("cos(", "cos("),
+            R.id.btnTan to Pair("tan(", "tan("),
+            R.id.btnCot to Pair("cot(", "cot("),
+            R.id.btnAsin to Pair("asin(", "asin("),
+            R.id.btnAcos to Pair("acos(", "acos("),
+            R.id.btnAtg to Pair("atan(", "atan("),
+            R.id.btnActg to Pair("acot(", "acot("),
+            R.id.btnLog to Pair("log(", "log("),
+            R.id.btnLn to Pair("ln(", "ln("),
+            R.id.btnExp to Pair("exp(", "exp("),
+            R.id.btnSqrtAdv to Pair("sqrt(", "sqrt("),
             R.id.btnFracAdv to Pair("()/()", "\\frac{}{}"),
-            R.id.btnAbsAdv to Pair("abs(", "|"),
-            R.id.btnPowAdv to Pair("^", "^{"),
-            R.id.btnPiAdv to Pair("pi", "\\pi"),
+            R.id.btnAbsAdv to Pair("abs(", "abs("),
+            R.id.btnPowAdv to Pair("^", "^"),
+            R.id.btnPiAdv to Pair("pi", "pi"),
             R.id.btnEAdv to Pair("e", "e"),
             R.id.btnOpenAdv to Pair("(", "("),
             R.id.btnCloseAdv to Pair(")", ")"),
@@ -402,8 +480,11 @@ class MainActivity : AppCompatActivity() {
         )
         functions.forEach { (id, pair) ->
             findViewById<Button>(id).setOnClickListener {
-                if (pair.first == "()/()") viewModel.appendInput("()/()", "\\frac{}{}")
-                else viewModel.appendInput(pair.first, pair.second)
+                if (pair.first == "()/()") {
+                    onButtonClick("()/()", "\\frac{}{}")
+                } else {
+                    onButtonClick(pair.first, pair.second)
+                }
             }
         }
 

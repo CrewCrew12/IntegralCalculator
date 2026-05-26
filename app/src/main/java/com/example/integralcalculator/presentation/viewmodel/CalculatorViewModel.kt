@@ -69,8 +69,41 @@ class CalculatorViewModel @Inject constructor(
 
     fun appendInput(text: String, latex: String) {
         _state.update {
-            val newRaw = it.rawInput + text
-            it.copy(rawInput = newRaw, latexPreview = inputToLatex(newRaw))
+            val cursorPos = it.cursorPosition
+            val newRaw = it.rawInput.substring(0, cursorPos) + text + it.rawInput.substring(cursorPos)
+            it.copy(
+                rawInput = newRaw,
+                latexPreview = inputToLatex(newRaw),
+                cursorPosition = cursorPos + text.length
+            )
+        }
+    }
+
+    fun moveCursorLeft() {
+        _state.update {
+            val newPos = (it.cursorPosition - 1).coerceAtLeast(0)
+            it.copy(cursorPosition = newPos)
+        }
+    }
+
+    fun moveCursorRight() {
+        _state.update {
+            val newPos = (it.cursorPosition + 1).coerceAtMost(it.rawInput.length)
+            it.copy(cursorPosition = newPos)
+        }
+    }
+
+    fun backspace() {
+        _state.update {
+            if (it.rawInput.isEmpty()) return@update it
+            val cursorPos = it.cursorPosition
+            if (cursorPos == 0) return@update it
+            val newRaw = it.rawInput.substring(0, cursorPos - 1) + it.rawInput.substring(cursorPos)
+            it.copy(
+                rawInput = newRaw,
+                latexPreview = inputToLatex(newRaw),
+                cursorPosition = cursorPos - 1
+            )
         }
     }
     fun appendNumber(number: String) {
@@ -82,13 +115,6 @@ class CalculatorViewModel @Inject constructor(
             current.rawInput + number
         }
         _state.update {
-            it.copy(rawInput = newRaw, latexPreview = inputToLatex(newRaw))
-        }
-    }
-    fun backspace() {
-        _state.update {
-            if (it.rawInput.isEmpty()) return@update it
-            val newRaw = it.rawInput.dropLast(1)
             it.copy(rawInput = newRaw, latexPreview = inputToLatex(newRaw))
         }
     }

@@ -75,7 +75,12 @@ class AuthViewModel @Inject constructor(
                     }
                 }
                 result.isFailure -> {
-                    val error = result.exceptionOrNull()?.message ?: "Ошибка входа. Попробуйте еще раз"
+                    val exception = result.exceptionOrNull()
+                    val error = when {
+                        exception?.message?.contains("password", ignoreCase = true) == true -> "Неверный пароль. Попробуйте снова."
+                        exception?.message?.contains("email", ignoreCase = true) == true -> "Пользователь с таким email не найден."
+                        else -> "Ошибка входа. Проверьте email и пароль."
+                    }
                     _uiState.update {
                         it.copy(
                             isLoading = false,
