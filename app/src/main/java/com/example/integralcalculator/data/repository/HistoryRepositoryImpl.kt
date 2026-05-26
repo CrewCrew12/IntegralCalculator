@@ -32,10 +32,43 @@ class HistoryRepositoryImpl @Inject constructor(
                 .await()
         } catch (_: Exception) {}
     }
-    private fun HistoryEntity.toDomain() = CalcRecord(id, expression, variable, resultLatex, timestamp, isDefinite)
-    private fun CalcRecord.toEntity(userId: String) = HistoryEntity(id, userId, expression, variable, result, timestamp, isDefinite)
-    private fun CalcRecord.toMap() = mapOf(
-        "expression" to expression, "variable" to variable,
-        "result" to result, "timestamp" to timestamp, "isDefinite" to isDefinite
-    )
+
+    private fun HistoryEntity.toDomain(): CalcRecord {
+        return CalcRecord(
+            id = id,
+            expression = expression,
+            variable = variable,
+            result = resultLatex,  // resultLatex -> result
+            timestamp = timestamp,
+            isDefinite = isDefinite,
+            lowerLimit = lowerLimit,
+            upperLimit = upperLimit
+        )
+    }
+
+    private fun CalcRecord.toEntity(userId: String): HistoryEntity {
+        return HistoryEntity(
+            id = id,
+            userId = userId,
+            expression = expression,
+            variable = variable,
+            resultLatex = result,
+            timestamp = timestamp,
+            isDefinite = isDefinite,
+            lowerLimit = lowerLimit,
+            upperLimit = upperLimit
+        )
+    }
+
+    private fun CalcRecord.toMap(): Map<String, Any> {
+        return mapOf(
+            "expression" to expression,
+            "variable" to variable,
+            "result" to result,
+            "timestamp" to timestamp,
+            "isDefinite" to isDefinite,
+            "lowerLimit" to lowerLimit,
+            "upperLimit" to upperLimit
+        )
+    }
 }

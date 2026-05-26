@@ -19,7 +19,7 @@ class IntegralRepositoryImpl @Inject constructor(
                 val result = dataSource.callIndefinite(expression, variable)
                 parseResult(result)
             } catch (e: Exception) {
-                IntegralResult(false, "", e.message)
+                IntegralResult(false, "", e.message ?: "Unknown error")
             }
         }
 
@@ -30,16 +30,19 @@ class IntegralRepositoryImpl @Inject constructor(
             val result = dataSource.callDefinite(expression, variable, lower, upper)
             parseResult(result)
         } catch (e: Exception) {
-            IntegralResult(false, "", e.message)
+            IntegralResult(false, "", e.message ?: "Unknown error")
         }
     }
 
     private fun parseResult(result: String): IntegralResult {
         return if (result.startsWith("ERROR:")) {
             val error = result.substring(6)
-            IntegralResult(false, "", error)
+            IntegralResult(false, "", "", error)
         } else {
-            IntegralResult(true, result)
+            val parts = result.split("|")
+            val latex = parts.getOrElse(0) { result }
+            val plainText = parts.getOrElse(1) { latex }
+            IntegralResult(true, latex, plainText)
         }
     }
 }

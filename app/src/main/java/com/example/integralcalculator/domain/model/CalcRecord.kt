@@ -5,6 +5,7 @@ data class CalcRecord(
     val expression: String,
     val variable: String,
     val result: String,
+    val resultPlainText: String = "",
     val timestamp: Long,
     val isDefinite: Boolean,
     val lowerLimit: String = "",

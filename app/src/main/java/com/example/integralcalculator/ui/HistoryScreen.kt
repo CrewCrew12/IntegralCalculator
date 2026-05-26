@@ -10,6 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.foundation.lazy.items
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.integralcalculator.domain.model.CalcRecord
 import com.example.integralcalculator.presentation.viewmodel.HistoryViewModel
@@ -34,7 +35,7 @@ fun HistoryScreen(
                 title = { Text("История вычислений") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Text("←")
+                        Text("←", fontSize = 28.sp)
                     }
                 }
             )
@@ -118,9 +119,9 @@ fun HistoryItem(record: CalcRecord, onClick: () -> Unit) {
             Spacer(Modifier.height(4.dp))
 
             Text(
-                text = "= ${record.result.take(50)}${if (record.result.length > 50) "..." else ""}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                text = record.resultPlainText,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.primary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )

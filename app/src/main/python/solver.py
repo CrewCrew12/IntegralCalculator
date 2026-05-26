@@ -15,9 +15,10 @@ def calculate_indefinite(expr_str, var_str='x'):
     try:
         expr, var = parse_safe(expr_str, var_str)
         result = integrate(expr, var)
-        return latex(result)
+        return f"{latex(result)}|{str(result)}"
     except Exception as e:
         return f"ERROR:{str(e)}"
+
 
 def calculate_definite(expr_str, var_str='x', lower='0', upper='1'):
     try:

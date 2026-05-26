@@ -73,7 +73,18 @@ class CalculatorViewModel @Inject constructor(
             it.copy(rawInput = newRaw, latexPreview = inputToLatex(newRaw))
         }
     }
-
+    fun appendNumber(number: String) {
+        val current = _state.value
+        val lastChar = if (current.rawInput.isNotEmpty()) current.rawInput.last() else null
+        val newRaw = if (lastChar != null && lastChar.isLetter() && lastChar != 'x') {
+            current.rawInput + "*" + number
+        } else {
+            current.rawInput + number
+        }
+        _state.update {
+            it.copy(rawInput = newRaw, latexPreview = inputToLatex(newRaw))
+        }
+    }
     fun backspace() {
         _state.update {
             if (it.rawInput.isEmpty()) return@update it
