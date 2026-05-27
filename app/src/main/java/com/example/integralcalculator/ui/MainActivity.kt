@@ -8,6 +8,7 @@ import android.text.TextWatcher
 import android.view.View
 import android.view.WindowManager
 import android.webkit.WebView
+import android.webkit.WebViewClient
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.viewModels
@@ -21,6 +22,8 @@ import com.example.integralcalculator.presentation.state.CalculatorState
 import com.example.integralcalculator.presentation.viewmodel.AuthViewModel
 import com.example.integralcalculator.presentation.viewmodel.CalculatorViewModel
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import android.content.Context
 import android.view.inputmethod.InputMethodManager
@@ -29,7 +32,6 @@ import android.view.inputmethod.InputMethodManager
 class MainActivity : AppCompatActivity() {
     private val viewModel: CalculatorViewModel by viewModels()
     private val authViewModel: AuthViewModel by viewModels()
-
     private lateinit var btnToggleABC: Button
     private lateinit var btnToggleFunc: Button
     private lateinit var btnToggle123: Button
@@ -54,6 +56,9 @@ class MainActivity : AppCompatActivity() {
     private var activeLimitField: EditText? = null
     private var currentTab = 0
     private var isSelectingVarMode = false
+    private var previewReady = false
+    private var resultReady = false
+    private var renderJob: Job? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -70,15 +75,21 @@ class MainActivity : AppCompatActivity() {
         setupLimitsInput()
         setupLimitDoneButton()
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN)
-
-        webviewPreview.postDelayed({
-            updatePreview(viewModel.state.value)
-        }, 1000)
     }
 
     override fun onResume() {
         super.onResume()
         authViewModel.refreshAuthStatus()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        listOf(webviewPreview, webviewResult).forEach { webView ->
+            webView.stopLoading()
+            webView.loadUrl("about:blank")
+            webView.clearHistory()
+            webView.destroy()
+        }
     }
 
     private fun bindViews() {
@@ -171,7 +182,7 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.state.collect { state ->
-                    updatePreview(state)
+                    updatePreviewWithDelay(state)
 
                     state.result?.let { res ->
                         if (res.success) {
@@ -183,12 +194,12 @@ class MainActivity : AppCompatActivity() {
                             } else {
                                 "\\text{Нет результата}"
                             }
-                            renderLatex(webviewResult, finalLatex)
+                            renderLatexWithDelay(webviewResult, finalLatex, "result")
                         } else if (res.error != null) {
                             screenInput.visibility = View.GONE
                             screenResult.visibility = View.VISIBLE
                             val errorLatex = "\\text{Ошибка: ${res.error}}"
-                            renderLatex(webviewResult, errorLatex)
+                            renderLatexWithDelay(webviewResult, errorLatex, "result")
                         }
                     }
 
@@ -200,13 +211,17 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun updatePreview(state: CalculatorState) {
-        val fullLatex = buildFullLatex(state)
-        if (fullLatex.isEmpty()) {
-            renderLatex(webviewPreview, "")
-            return
+    private fun updatePreviewWithDelay(state: CalculatorState) {
+        renderJob?.cancel()
+        renderJob = lifecycleScope.launch {
+            delay(300)
+            val fullLatex = buildFullLatex(state)
+            if (fullLatex.isEmpty()) {
+                renderLatexWithDelay(webviewPreview, "", "preview")
+                return@launch
+            }
+            renderLatexWithDelay(webviewPreview, fullLatex, "preview")
         }
-        renderLatex(webviewPreview, fullLatex)
     }
 
     private fun buildFullLatex(state: CalculatorState): String {
@@ -242,93 +257,121 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupWebViews() {
-        listOf(webviewPreview, webviewResult).forEach { webView ->
-            webView.settings.javaScriptEnabled = true
-            webView.settings.domStorageEnabled = true
-            webView.settings.loadWithOverviewMode = true
-            webView.settings.useWideViewPort = true
-            webView.setBackgroundColor(Color.TRANSPARENT)
-
-            val html = """
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <meta charset="utf-8">
-                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                    <style>
-                        body { 
-                            margin: 0; 
-                            padding: 10px; 
-                            color: #ffffff; 
-                            font-size: 20px; 
-                            text-align: center; 
-                            background-color: transparent;
-                            font-family: 'Times New Roman', serif;
-                        }
-                    </style>
-                    <script>
-                        window.MathJax = {
-                            tex: {
-                                inlineMath: [['$', '$'], ['\\(', '\\)']],
-                                displayMath: [['$$', '$$'], ['\\[', '\\]']]
-                            }
-                        };
-                    </script>
-                    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
-                    <script>
-                        function renderLatex(latex) {
-                            var container = document.getElementById('math-container');
-                            if (!container) return;
-                            if (!latex || latex === '') {
-                                container.innerHTML = '';
-                                return;
-                            }
-                            container.innerHTML = '\\[' + latex + '\\]';
-                            if (window.MathJax) {
-                                MathJax.typesetPromise([container]).catch(function(err) {
-                                    container.innerHTML = '\\text{Ошибка: } ' + latex;
-                                });
-                            }
-                        }
-                    </script>
-                </head>
-                <body>
-                    <div id="math-container"></div>
-                </body>
-                </html>
-            """.trimIndent()
-
-            webView.loadDataWithBaseURL(null, html, "text/html", "utf-8", null)
-        }
+        setupWebView(webviewPreview, "preview") { previewReady = true }
+        setupWebView(webviewResult, "result") { resultReady = true }
     }
 
-    private fun renderLatex(webView: WebView, latex: String) {
-        if (latex.isEmpty()) {
-            webView.evaluateJavascript("document.getElementById('math-container').innerHTML = '';", null)
-            return
+    private fun setupWebView(webView: WebView, name: String, onReady: () -> Unit) {
+        webView.settings.javaScriptEnabled = true
+        webView.settings.domStorageEnabled = true
+        webView.settings.loadWithOverviewMode = true
+        webView.settings.useWideViewPort = true
+        webView.setBackgroundColor(Color.TRANSPARENT)
+
+        webView.webViewClient = object : WebViewClient() {
+            override fun onPageFinished(view: WebView?, url: String?) {
+                super.onPageFinished(view, url)
+                onReady()
+            }
         }
 
-        val safeLatex = latex
-            .replace("\\", "\\\\")
-            .replace("'", "\\'")
-            .replace("\n", " ")
-            .replace("\r", " ")
-
-        val jsCode = """
-            (function() {
-                var container = document.getElementById('math-container');
-                if (!container) return;
-                if (window.renderLatex) {
-                    window.renderLatex('${safeLatex}');
-                } else {
-                    setTimeout(function() {
-                        if (window.renderLatex) window.renderLatex('${safeLatex}');
-                    }, 100);
-                }
-            })();
+        val html = """
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="utf-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <style>
+                    body { 
+                        margin: 0; 
+                        padding: 10px; 
+                        color: #ffffff; 
+                        font-size: 20px; 
+                        text-align: center; 
+                        background-color: transparent;
+                        font-family: 'Times New Roman', serif;
+                    }
+                </style>
+                <script>
+                    window.MathJax = {
+                        tex: {
+                            inlineMath: [['$', '$'], ['\\(', '\\)']],
+                            displayMath: [['$$', '$$'], ['\\[', '\\]']]
+                        },
+                        startup: {
+                            pageReady: () => {
+                                window.MathJaxReady = true;
+                            }
+                        }
+                    };
+                </script>
+                <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+                <script>
+                    window.renderLatex = function(latex) {
+                        var container = document.getElementById('math-container');
+                        if (!container) return;
+                        if (!latex || latex === '') {
+                            container.innerHTML = '';
+                            return;
+                        }
+                        container.innerHTML = '\\[' + latex + '\\]';
+                        if (window.MathJax && window.MathJaxReady) {
+                            MathJax.typesetPromise([container]).catch(function(err) {
+                                console.error('MathJax error:', err);
+                                container.innerHTML = '\\text{Ошибка: } ' + latex;
+                            });
+                        } else {
+                            setTimeout(function() {
+                                if (window.MathJax && window.MathJaxReady) {
+                                    MathJax.typesetPromise([container]);
+                                }
+                            }, 200);
+                        }
+                    };
+                </script>
+            </head>
+            <body>
+                <div id="math-container"></div>
+            </body>
+            </html>
         """.trimIndent()
 
-        webView.evaluateJavascript(jsCode, null)
+        webView.loadDataWithBaseURL(null, html, "text/html", "utf-8", null)
+    }
+
+    private fun renderLatexWithDelay(webView: WebView, latex: String, target: String) {
+        lifecycleScope.launch {
+            val ready = when (target) {
+                "preview" -> previewReady
+                "result" -> resultReady
+                else -> false
+            }
+
+            if (!ready) {
+                delay(500)
+            }
+
+            if (latex.isEmpty()) {
+                webView.evaluateJavascript("document.getElementById('math-container').innerHTML = '';", null)
+                return@launch
+            }
+
+            val safeLatex = latex
+                .replace("\\", "\\\\")
+                .replace("'", "\\'")
+                .replace("\n", " ")
+                .replace("\r", " ")
+
+            val jsCode = """
+                (function() {
+                    if (window.renderLatex) {
+                        window.renderLatex('${safeLatex}');
+                    }
+                })();
+            """.trimIndent()
+
+            webView.evaluateJavascript(jsCode, null)
+        }
     }
 
     private fun initUI() {

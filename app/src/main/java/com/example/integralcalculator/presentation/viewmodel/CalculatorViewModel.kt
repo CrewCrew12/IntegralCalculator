@@ -8,6 +8,7 @@ import com.example.integralcalculator.domain.usecase.auth.GetCurrentUserUseCase
 import com.example.integralcalculator.domain.usecase.history.SaveHistoryRecordUseCase
 import com.example.integralcalculator.presentation.state.CalculatorState
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -24,6 +25,8 @@ class CalculatorViewModel @Inject constructor(
 
     private val _state = MutableStateFlow(CalculatorState())
     val state: StateFlow<CalculatorState> = _state.asStateFlow()
+
+    private var lastCalculationJob: Job? = null
 
     private fun inputToLatex(raw: String): String {
         if (raw.isEmpty()) return ""
@@ -68,10 +71,10 @@ class CalculatorViewModel @Inject constructor(
     }
 
     fun appendInput(text: String, latex: String) {
-        _state.update {
-            val cursorPos = it.cursorPosition
-            val newRaw = it.rawInput.substring(0, cursorPos) + text + it.rawInput.substring(cursorPos)
-            it.copy(
+        _state.update { currentState ->
+            val cursorPos = currentState.cursorPosition.coerceIn(0, currentState.rawInput.length)
+            val newRaw = currentState.rawInput.substring(0, cursorPos) + text + currentState.rawInput.substring(cursorPos)
+            currentState.copy(
                 rawInput = newRaw,
                 latexPreview = inputToLatex(newRaw),
                 cursorPosition = cursorPos + text.length
@@ -80,32 +83,33 @@ class CalculatorViewModel @Inject constructor(
     }
 
     fun moveCursorLeft() {
-        _state.update {
-            val newPos = (it.cursorPosition - 1).coerceAtLeast(0)
-            it.copy(cursorPosition = newPos)
+        _state.update { currentState ->
+            val newPos = (currentState.cursorPosition - 1).coerceAtLeast(0)
+            currentState.copy(cursorPosition = newPos)
         }
     }
 
     fun moveCursorRight() {
-        _state.update {
-            val newPos = (it.cursorPosition + 1).coerceAtMost(it.rawInput.length)
-            it.copy(cursorPosition = newPos)
+        _state.update { currentState ->
+            val newPos = (currentState.cursorPosition + 1).coerceAtMost(currentState.rawInput.length)
+            currentState.copy(cursorPosition = newPos)
         }
     }
 
     fun backspace() {
-        _state.update {
-            if (it.rawInput.isEmpty()) return@update it
-            val cursorPos = it.cursorPosition
-            if (cursorPos == 0) return@update it
-            val newRaw = it.rawInput.substring(0, cursorPos - 1) + it.rawInput.substring(cursorPos)
-            it.copy(
+        _state.update { currentState ->
+            if (currentState.rawInput.isEmpty()) return@update currentState
+            val cursorPos = currentState.cursorPosition.coerceIn(0, currentState.rawInput.length)
+            if (cursorPos == 0) return@update currentState
+            val newRaw = currentState.rawInput.substring(0, cursorPos - 1) + currentState.rawInput.substring(cursorPos)
+            currentState.copy(
                 rawInput = newRaw,
                 latexPreview = inputToLatex(newRaw),
                 cursorPosition = cursorPos - 1
             )
         }
     }
+
     fun appendNumber(number: String) {
         val current = _state.value
         val lastChar = if (current.rawInput.isNotEmpty()) current.rawInput.last() else null
@@ -120,7 +124,14 @@ class CalculatorViewModel @Inject constructor(
     }
 
     fun clear() {
-        _state.update { it.copy(rawInput = "", latexPreview = "", result = null) }
+        _state.update {
+            it.copy(
+                rawInput = "",
+                latexPreview = "",
+                result = null,
+                cursorPosition = 0
+            )
+        }
     }
 
     fun setMode(isDefinite: Boolean) {
@@ -136,9 +147,12 @@ class CalculatorViewModel @Inject constructor(
     }
 
     fun calculate() {
-        viewModelScope.launch {
+        lastCalculationJob?.cancel()
+
+        lastCalculationJob = viewModelScope.launch {
             val current = _state.value
             if (current.rawInput.isBlank()) return@launch
+            if (current.isLoading) return@launch
 
             _state.update { it.copy(isLoading = true, result = null) }
 
