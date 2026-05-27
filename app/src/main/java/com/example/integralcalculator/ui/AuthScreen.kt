@@ -9,14 +9,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.integralcalculator.presentation.viewmodel.AuthViewModel
-import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -28,16 +26,13 @@ fun AuthScreen(
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
-    val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
 
     LaunchedEffect(uiState.isLoggedIn) {
         if (uiState.isLoggedIn) {
-            delay(1000)
             onAuthSuccess()
         }
     }
-
 
     Column(
         modifier = Modifier
@@ -76,12 +71,8 @@ fun AuthScreen(
             isError = uiState.error != null && uiState.error!!.contains("пароль", ignoreCase = true),
             trailingIcon = {
                 val image = if (passwordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
-
                 IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                    Icon(
-                        imageVector = image,
-                        contentDescription = if (passwordVisible) "Скрыть пароль" else "Показать пароль"
-                    )
+                    Icon(imageVector = image, contentDescription = if (passwordVisible) "Скрыть пароль" else "Показать пароль")
                 }
             }
         )
@@ -133,12 +124,6 @@ fun AuthScreen(
                     modifier = Modifier.padding(12.dp)
                 )
             }
-        }
-    }
-    LaunchedEffect(uiState.isLoggedIn) {
-        if (uiState.isLoggedIn) {
-            delay(500)
-            onAuthSuccess()
         }
     }
 }

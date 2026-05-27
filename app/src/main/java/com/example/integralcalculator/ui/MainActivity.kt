@@ -69,11 +69,12 @@ class MainActivity : AppCompatActivity() {
         bindViews()
         setupWebViews()
         initUI()
-        observeAuthState()
         observeCalculatorState()
         setupCursorButtons()
         setupLimitsInput()
         setupLimitDoneButton()
+        btnHistory.isEnabled = true
+        btnHistory.alpha = 1f
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN)
     }
 
@@ -161,22 +162,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun observeAuthState() {
-        lifecycleScope.launch {
-            repeatOnLifecycle(Lifecycle.State.STARTED) {
-                authViewModel.uiState.collect { authState ->
-                    if (!authState.isLoggedIn) {
-                        val intent = Intent(this@MainActivity, AuthActivity::class.java)
-                        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                        startActivity(intent)
-                    } else {
-                        btnHistory.isEnabled = true
-                        btnHistory.alpha = 1f
-                    }
-                }
-            }
-        }
-    }
 
     private fun observeCalculatorState() {
         lifecycleScope.launch {

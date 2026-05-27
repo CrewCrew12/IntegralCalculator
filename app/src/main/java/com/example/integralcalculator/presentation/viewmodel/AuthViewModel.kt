@@ -13,6 +13,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class AuthUiState(
+    val isChecking: Boolean = true,
     val isLoading: Boolean = false,
     val isLoggedIn: Boolean = false,
     val userId: String? = null,
@@ -35,9 +36,11 @@ class AuthViewModel @Inject constructor(
 
     private fun checkAuthStatus() {
         viewModelScope.launch {
+            _uiState.update { it.copy(isChecking = true) }
             val userId = getCurrentUserUseCase()
             _uiState.update {
                 it.copy(
+                    isChecking = false,
                     isLoggedIn = userId != null,
                     userId = userId
                 )
