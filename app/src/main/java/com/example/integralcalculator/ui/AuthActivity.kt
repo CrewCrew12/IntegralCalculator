@@ -11,6 +11,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dagger.hilt.android.AndroidEntryPoint
 import com.example.integralcalculator.presentation.viewmodel.AuthViewModel
+import com.example.integralcalculator.ui.theme.IntegralCalculatorTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -21,7 +22,7 @@ class AuthActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         setContent {
-            MaterialTheme {
+            IntegralCalculatorTheme {
                 Surface(color = MaterialTheme.colorScheme.background) {
                     AuthScreenContent()
                 }
