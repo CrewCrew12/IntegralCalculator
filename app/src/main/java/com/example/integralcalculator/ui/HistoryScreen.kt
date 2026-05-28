@@ -1,5 +1,6 @@
 package com.example.integralcalculator.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -137,17 +138,28 @@ fun DetailScreen(
     val dateFormat = SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault())
     val formattedDate = dateFormat.format(Date(record.timestamp))
     val integralExpression = buildFullExpression(record)
+    BackHandler(onBack = onBack)
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)
     ) {
-        IconButton(
-            onClick = onBack,
-            modifier = Modifier.padding(bottom = 16.dp)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("← Назад к списку", style = MaterialTheme.typography.bodyLarge)
+            IconButton(
+                onClick = onBack
+            ) {
+                Text("←", fontSize = 24.sp)
+            }
+            Text(
+                text = "Назад к списку",
+                style = MaterialTheme.typography.bodyLarge
+            )
         }
 
         Card(
@@ -182,6 +194,7 @@ fun DetailScreen(
                         .fillMaxWidth()
                         .padding(bottom = 24.dp)
                 )
+
                 Text(
                     text = "Результат",
                     fontSize = 16.sp,
@@ -189,6 +202,7 @@ fun DetailScreen(
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
+
                 Text(
                     text = record.result,
                     fontSize = 22.sp,
@@ -199,6 +213,7 @@ fun DetailScreen(
                         .fillMaxWidth()
                         .padding(bottom = 24.dp)
                 )
+
                 Text(
                     text = formattedDate,
                     fontSize = 11.sp,
