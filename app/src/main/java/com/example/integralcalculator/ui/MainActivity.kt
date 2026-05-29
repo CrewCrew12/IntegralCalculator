@@ -27,11 +27,13 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import android.content.Context
 import android.view.inputmethod.InputMethodManager
+import android.util.Log
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
     private val viewModel: CalculatorViewModel by viewModels()
     private val authViewModel: AuthViewModel by viewModels()
+
     private lateinit var btnToggleABC: Button
     private lateinit var btnToggleFunc: Button
     private lateinit var btnToggle123: Button
@@ -49,9 +51,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var layoutFunctions: GridLayout
     private lateinit var btnNewCalc: Button
     private lateinit var btnHistory: Button
-    private lateinit var btnCursorLeft: Button
-    private lateinit var btnCursorRight: Button
-    private lateinit var btnLimitDone: Button
+    private lateinit var btnCursorLeft: ImageButton
+    private lateinit var btnCursorRight: ImageButton
+    private lateinit var btnLimitDone: ImageButton
 
     private var activeLimitField: EditText? = null
     private var currentTab = 0
@@ -60,8 +62,16 @@ class MainActivity : AppCompatActivity() {
     private var resultReady = false
     private var renderJob: Job? = null
 
+    // WebView для предзагрузки MathJax
+    private lateinit var preloadWebView: WebView
+    private var isMathJaxPreloaded = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Предзагрузка MathJax в фоне (скрытый WebView)
+        preloadMathJax()
+
         setContentView(R.layout.activity_main)
 
         if (!Python.isStarted()) Python.start(AndroidPlatform(this))
@@ -78,6 +88,31 @@ class MainActivity : AppCompatActivity() {
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN)
     }
 
+    private fun preloadMathJax() {
+        preloadWebView = WebView(this).apply {
+            visibility = View.GONE  // Скрытый WebView
+            settings.javaScriptEnabled = true
+            settings.domStorageEnabled = true
+
+            webViewClient = object : WebViewClient() {
+                override fun onPageFinished(view: WebView?, url: String?) {
+                    super.onPageFinished(view, url)
+                    isMathJaxPreloaded = true
+                    Log.d("MathJax", "Preloaded successfully")
+                    // Можно уничтожить через несколько секунд, чтобы не занимал память
+                    view?.postDelayed({
+                        if (this@apply.parent != null) {
+                            destroy()
+                        }
+                    }, 5000)
+                }
+            }
+
+            // Загружаем MathJax в фоне
+            loadUrl("https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js")
+        }
+    }
+
     override fun onResume() {
         super.onResume()
         authViewModel.refreshAuthStatus()
@@ -90,6 +125,10 @@ class MainActivity : AppCompatActivity() {
             webView.loadUrl("about:blank")
             webView.clearHistory()
             webView.destroy()
+        }
+        // Уничтожаем предзагруженный WebView
+        if (::preloadWebView.isInitialized) {
+            preloadWebView.destroy()
         }
     }
 
@@ -161,8 +200,24 @@ class MainActivity : AppCompatActivity() {
             viewModel.setLimits(etLowerLimit.text.toString(), etUpperLimit.text.toString())
         }
     }
+    private fun deleteFromLimit() {
+        activeLimitField?.let { field ->
+            val currentText = field.text.toString()
+            if (currentText.isNotEmpty()) {
+                val newText = currentText.dropLast(1)
+                field.setText(newText)
+                field.setSelection(newText.length)
+                viewModel.setLimits(etLowerLimit.text.toString(), etUpperLimit.text.toString())
+            }
+        }
+    }
 
-
+    private fun clearLimit() {
+        activeLimitField?.let { field ->
+            field.setText("")
+            viewModel.setLimits(etLowerLimit.text.toString(), etUpperLimit.text.toString())
+        }
+    }
     private fun observeCalculatorState() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -199,7 +254,9 @@ class MainActivity : AppCompatActivity() {
     private fun updatePreviewWithDelay(state: CalculatorState) {
         renderJob?.cancel()
         renderJob = lifecycleScope.launch {
-            delay(300)
+            val delayTime = if (!isMathJaxPreloaded) 800L else 300L
+            delay(delayTime)
+
             val fullLatex = buildFullLatex(state)
             if (fullLatex.isEmpty()) {
                 renderLatexWithDelay(webviewPreview, "", "preview")
@@ -251,7 +308,11 @@ class MainActivity : AppCompatActivity() {
         webView.settings.domStorageEnabled = true
         webView.settings.loadWithOverviewMode = true
         webView.settings.useWideViewPort = true
+        webView.settings.cacheMode = android.webkit.WebSettings.LOAD_DEFAULT
         webView.setBackgroundColor(Color.TRANSPARENT)
+        webView.settings.cacheMode = android.webkit.WebSettings.LOAD_DEFAULT
+        webView.settings.setRenderPriority(android.webkit.WebSettings.RenderPriority.HIGH)
+        webView.settings.layoutAlgorithm = android.webkit.WebSettings.LayoutAlgorithm.NARROW_COLUMNS
 
         webView.webViewClient = object : WebViewClient() {
             override fun onPageFinished(view: WebView?, url: String?) {
@@ -333,7 +394,7 @@ class MainActivity : AppCompatActivity() {
             }
 
             if (!ready) {
-                delay(500)
+                delay(200)
             }
 
             if (latex.isEmpty()) {
@@ -515,14 +576,49 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+        findViewById<Button>(R.id.btnBackAdv).setOnClickListener {
+            if (activeLimitField != null) {
+                deleteFromLimit()
+            } else {
+                viewModel.backspace()
+            }
+        }
+        findViewById<Button>(R.id.btnBackAdv2).setOnClickListener {
+            if (activeLimitField != null) {
+                deleteFromLimit()
+            } else {
+                viewModel.backspace()
+            }
+        }
+        findViewById<Button>(R.id.btnBack).setOnClickListener {
+            if (activeLimitField != null) {
+                deleteFromLimit()
+            } else {
+                viewModel.backspace()
+            }
+        }
 
-        findViewById<Button>(R.id.btnBackAdv).setOnClickListener { viewModel.backspace() }
-        findViewById<Button>(R.id.btnCAdv).setOnClickListener { viewModel.clear() }
-        findViewById<Button>(R.id.btnBackAdv2).setOnClickListener { viewModel.backspace() }
-        findViewById<Button>(R.id.btnCAdv2).setOnClickListener { viewModel.clear() }
-        findViewById<Button>(R.id.btnCalcAdv).setOnClickListener { viewModel.calculate() }
-        findViewById<Button>(R.id.btnC).setOnClickListener { viewModel.clear() }
-        findViewById<Button>(R.id.btnBack).setOnClickListener { viewModel.backspace() }
+        findViewById<Button>(R.id.btnCAdv).setOnClickListener {
+            if (activeLimitField != null) {
+                clearLimit()
+            } else {
+                viewModel.clear()
+            }
+        }
+        findViewById<Button>(R.id.btnCAdv2).setOnClickListener {
+            if (activeLimitField != null) {
+                clearLimit()
+            } else {
+                viewModel.clear()
+            }
+        }
+        findViewById<Button>(R.id.btnC).setOnClickListener {
+            if (activeLimitField != null) {
+                clearLimit()
+            } else {
+                viewModel.clear()
+            }
+        }
         findViewById<Button>(R.id.btnCalc).setOnClickListener { viewModel.calculate() }
 
         btnNewCalc.setOnClickListener {

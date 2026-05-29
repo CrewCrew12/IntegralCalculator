@@ -13,7 +13,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class AuthUiState(
-    val isChecking: Boolean = true,
+    val isInitialized: Boolean = false,  // ← ДОБАВЛЕНО
     val isLoading: Boolean = false,
     val isLoggedIn: Boolean = false,
     val userId: String? = null,
@@ -36,17 +36,17 @@ class AuthViewModel @Inject constructor(
 
     private fun checkAuthStatus() {
         viewModelScope.launch {
-            _uiState.update { it.copy(isChecking = true) }
             val userId = getCurrentUserUseCase()
             _uiState.update {
                 it.copy(
-                    isChecking = false,
+                    isInitialized = true,  // ← ДОБАВЛЕНО
                     isLoggedIn = userId != null,
                     userId = userId
                 )
             }
         }
     }
+
     fun refreshAuthStatus() {
         viewModelScope.launch {
             val userId = getCurrentUserUseCase()
@@ -59,6 +59,7 @@ class AuthViewModel @Inject constructor(
             }
         }
     }
+
     fun login(email: String, password: String) {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
@@ -125,9 +126,11 @@ class AuthViewModel @Inject constructor(
             }
         }
     }
+
     fun clearError() {
         _uiState.update { it.copy(error = null) }
     }
+
     fun logout() {
         viewModelScope.launch {
             _uiState.update {

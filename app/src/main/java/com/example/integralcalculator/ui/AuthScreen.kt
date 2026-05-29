@@ -8,7 +8,6 @@ import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -33,6 +32,27 @@ fun AuthScreen(
         if (uiState.isLoggedIn) {
             onAuthSuccess()
         }
+    }
+
+    val onAuthClick = remember(isLogin, email, password) {
+        {
+            if (isLogin) {
+                viewModel.login(email, password)
+            } else {
+                viewModel.register(email, password)
+            }
+        }
+    }
+
+    val onToggleMode = remember {
+        {
+            isLogin = !isLogin
+            viewModel.clearError()
+        }
+    }
+
+    val onTogglePasswordVisibility = remember {
+        { passwordVisible = !passwordVisible }
     }
 
     Column(
@@ -72,8 +92,11 @@ fun AuthScreen(
             isError = uiState.error != null && uiState.error!!.contains("пароль", ignoreCase = true),
             trailingIcon = {
                 val image = if (passwordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
-                IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                    Icon(imageVector = image, contentDescription = if (passwordVisible) "Скрыть пароль" else "Показать пароль")
+                IconButton(onClick = onTogglePasswordVisibility) {
+                    Icon(
+                        imageVector = image,
+                        contentDescription = if (passwordVisible) "Скрыть пароль" else "Показать пароль"
+                    )
                 }
             }
         )
@@ -81,13 +104,7 @@ fun AuthScreen(
         Spacer(Modifier.height(24.dp))
 
         Button(
-            onClick = {
-                if (isLogin) {
-                    viewModel.login(email, password)
-                } else {
-                    viewModel.register(email, password)
-                }
-            },
+            onClick = onAuthClick,
             modifier = Modifier.fillMaxWidth(),
             enabled = !uiState.isLoading && email.isNotBlank() && password.length >= 6
         ) {
@@ -103,10 +120,7 @@ fun AuthScreen(
 
         Spacer(Modifier.height(16.dp))
 
-        TextButton(onClick = {
-            isLogin = !isLogin
-            viewModel.clearError()
-        }) {
+        TextButton(onClick = onToggleMode) {
             Text(if (isLogin) "Нет аккаунта? Создать" else "Уже есть аккаунт? Войти")
         }
 

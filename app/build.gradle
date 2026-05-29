@@ -26,7 +26,7 @@ android {
             version "3.10"
             buildPython "C:\\Users\\dusin\\PycharmProjects\\pythonProject\\venv\\Scripts\\python.exe"
             pip {
-                install "sympy==1.12"
+                install "sympy"
             }
         }
     }

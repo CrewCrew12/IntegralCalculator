@@ -7,13 +7,10 @@ import androidx.activity.compose.setContent
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
-import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dagger.hilt.android.AndroidEntryPoint
 import com.example.integralcalculator.presentation.viewmodel.AuthViewModel
 import com.example.integralcalculator.ui.theme.IntegralCalculatorTheme
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
 class AuthActivity : ComponentActivity() {
@@ -35,41 +32,30 @@ class AuthActivity : ComponentActivity() {
         val authViewModel: AuthViewModel = viewModel()
         val uiState by authViewModel.uiState.collectAsState()
 
-        var showLoading by remember { mutableStateOf(true) }
-        var isAuthenticated by remember { mutableStateOf(false) }
-
+        // Принудительная проверка при старте
         LaunchedEffect(Unit) {
-            delay(500)
             authViewModel.refreshAuthStatus()
         }
 
-        LaunchedEffect(uiState.isLoggedIn, uiState.isChecking) {
-            if (!uiState.isChecking) {
+        // Реагируем на инициализацию
+        LaunchedEffect(uiState.isInitialized, uiState.isLoggedIn) {
+            if (uiState.isInitialized) {
                 if (uiState.isLoggedIn) {
-                    showLoading = true
-                    delay(1500)
-                    isAuthenticated = true
                     startActivity(Intent(this@AuthActivity, MainActivity::class.java))
                     finish()
-                } else {
-                    showLoading = false
-                    isAuthenticated = false
                 }
             }
         }
 
+        // Показываем нужный экран
         when {
-            uiState.isChecking -> {
+            !uiState.isInitialized -> {
                 LoadingScreen(onLoadingComplete = {})
             }
-            showLoading && uiState.isLoggedIn -> {
-                LoadingScreen(onLoadingComplete = {})
-            }
-            !uiState.isLoggedIn -> {
+            else -> {
                 AuthScreen(
                     viewModel = authViewModel,
-                    onAuthSuccess = {
-                    }
+                    onAuthSuccess = {}
                 )
             }
         }

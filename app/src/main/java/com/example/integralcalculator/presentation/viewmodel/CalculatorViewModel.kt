@@ -9,6 +9,7 @@ import com.example.integralcalculator.domain.usecase.history.SaveHistoryRecordUs
 import com.example.integralcalculator.presentation.state.CalculatorState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -27,6 +28,7 @@ class CalculatorViewModel @Inject constructor(
     val state: StateFlow<CalculatorState> = _state.asStateFlow()
 
     private var lastCalculationJob: Job? = null
+    private var calculateDebounceJob: Job? = null
 
     private fun inputToLatex(raw: String): String {
         if (raw.isEmpty()) return ""
@@ -147,42 +149,42 @@ class CalculatorViewModel @Inject constructor(
     }
 
     fun calculate() {
-        lastCalculationJob?.cancel()
-
-        lastCalculationJob = viewModelScope.launch {
-            val current = _state.value
-            if (current.rawInput.isBlank()) return@launch
-            if (current.isLoading) return@launch
-
-            _state.update { it.copy(isLoading = true, result = null) }
-
-            val result = calculateUseCase(
-                current.rawInput, current.integrationVar,
-                current.isDefinite, current.lowerLimit, current.upperLimit
-            )
-
-            if (result.success) {
-                val userId = getCurrentUserUseCase()
-                if (userId != null) {
-                    val record = CalcRecord(
-                        expression = current.rawInput,
-                        variable = current.integrationVar,
-                        result = result.latex,
-                        timestamp = System.currentTimeMillis(),
-                        isDefinite = current.isDefinite,
-                        lowerLimit = current.lowerLimit,
-                        upperLimit = current.upperLimit
-                    )
-                    saveHistoryUseCase(userId, record)
-                }
-            }
-
-            _state.update {
-                it.copy(
-                    isLoading = false,
-                    result = result,
-                    latexPreview = if (!result.success) "\\text{Ошибка: } ${result.error}" else it.latexPreview
+        calculateDebounceJob?.cancel()
+        calculateDebounceJob = viewModelScope.launch {
+            delay(500)
+            lastCalculationJob?.cancel()
+            lastCalculationJob = viewModelScope.launch {
+                val current = _state.value
+                if (current.rawInput.isBlank()) return@launch
+                if (current.isLoading) return@launch
+                _state.update { it.copy(isLoading = true, result = null) }
+                val result = calculateUseCase(
+                    current.rawInput, current.integrationVar,
+                    current.isDefinite, current.lowerLimit, current.upperLimit
                 )
+                if (result.success) {
+                    val userId = getCurrentUserUseCase()
+                    if (userId != null) {
+                        val record = CalcRecord(
+                            expression = current.rawInput,
+                            variable = current.integrationVar,
+                            result = result.latex,
+                            timestamp = System.currentTimeMillis(),
+                            isDefinite = current.isDefinite,
+                            lowerLimit = current.lowerLimit,
+                            upperLimit = current.upperLimit
+                        )
+                        saveHistoryUseCase(userId, record)
+                    }
+                }
+
+                _state.update {
+                    it.copy(
+                        isLoading = false,
+                        result = result,
+                        latexPreview = if (!result.success) "\\text{Ошибка: } ${result.error}" else it.latexPreview
+                    )
+                }
             }
         }
     }
