@@ -83,7 +83,44 @@ class CalculatorViewModel @Inject constructor(
             )
         }
     }
+    fun smartBackspace() {
+        _state.update { state ->
+            val text = state.rawInput
+            if (text.isEmpty()) return@update state
 
+            var cursorPos = state.cursorPosition.coerceIn(0, text.length)
+
+            val functions = listOf(
+                "sin(", "cos(", "tan(", "cot(",
+                "asin(", "acos(", "atan(", "acot(",
+                "sqrt(", "log(", "ln(", "exp(", "abs("
+            )
+
+            var newText = text
+            var newCursorPos = cursorPos
+
+            var found = false
+            for (func in functions) {
+                val funcStart = cursorPos - func.length
+                if (funcStart >= 0 && text.substring(funcStart, cursorPos) == func) {
+                    newText = text.substring(0, funcStart) + text.substring(cursorPos)
+                    newCursorPos = funcStart
+                    found = true
+                    break
+                }
+            }
+            if (!found && cursorPos > 0) {
+                newText = text.substring(0, cursorPos - 1) + text.substring(cursorPos)
+                newCursorPos = cursorPos - 1
+            }
+
+            state.copy(
+                rawInput = newText,
+                latexPreview = inputToLatex(newText),
+                cursorPosition = newCursorPos
+            )
+        }
+    }
     fun moveCursorLeft() {
         _state.update { currentState ->
             val newPos = (currentState.cursorPosition - 1).coerceAtLeast(0)

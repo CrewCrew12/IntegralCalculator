@@ -31,25 +31,22 @@ class AuthActivity : ComponentActivity() {
     fun AuthScreenContent() {
         val authViewModel: AuthViewModel = viewModel()
         val uiState by authViewModel.uiState.collectAsState()
+        var isChecking by remember { mutableStateOf(true) }
 
-        // Принудительная проверка при старте
         LaunchedEffect(Unit) {
             authViewModel.refreshAuthStatus()
+            kotlinx.coroutines.delay(500)
+            isChecking = false
         }
-
-        // Реагируем на инициализацию
-        LaunchedEffect(uiState.isInitialized, uiState.isLoggedIn) {
-            if (uiState.isInitialized) {
-                if (uiState.isLoggedIn) {
-                    startActivity(Intent(this@AuthActivity, MainActivity::class.java))
-                    finish()
-                }
+        LaunchedEffect(uiState.isLoggedIn) {
+            if (uiState.isLoggedIn) {
+                startActivity(Intent(this@AuthActivity, MainActivity::class.java))
+                finish()
             }
         }
 
-        // Показываем нужный экран
         when {
-            !uiState.isInitialized -> {
+            isChecking -> {
                 LoadingScreen(onLoadingComplete = {})
             }
             else -> {

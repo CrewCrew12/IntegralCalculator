@@ -250,6 +250,14 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
+    private fun updatePreview(state: CalculatorState) {
+        val fullLatex = buildFullLatex(state)
+        if (fullLatex.isEmpty()) {
+            renderLatexWithDelay(webviewPreview, "", "preview")
+            return
+        }
+        renderLatexWithDelay(webviewPreview, fullLatex, "preview")
+    }
 
     private fun updatePreviewWithDelay(state: CalculatorState) {
         renderJob?.cancel()
@@ -318,6 +326,9 @@ class MainActivity : AppCompatActivity() {
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
                 onReady()
+                if (name == "preview") {
+                    updatePreview(viewModel.state.value)
+                }
             }
         }
 
@@ -580,21 +591,21 @@ class MainActivity : AppCompatActivity() {
             if (activeLimitField != null) {
                 deleteFromLimit()
             } else {
-                viewModel.backspace()
+                viewModel.smartBackspace()
             }
         }
         findViewById<Button>(R.id.btnBackAdv2).setOnClickListener {
             if (activeLimitField != null) {
                 deleteFromLimit()
             } else {
-                viewModel.backspace()
+                viewModel.smartBackspace()
             }
         }
         findViewById<Button>(R.id.btnBack).setOnClickListener {
             if (activeLimitField != null) {
                 deleteFromLimit()
             } else {
-                viewModel.backspace()
+                viewModel.smartBackspace()
             }
         }
 

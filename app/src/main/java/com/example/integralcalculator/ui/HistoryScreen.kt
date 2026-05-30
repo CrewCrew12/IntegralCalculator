@@ -85,6 +85,7 @@ fun HistoryScreen(
 fun HistoryItem(record: CalcRecord, onClick: () -> Unit) {
     val dateFormat = SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault())
     val formattedDate = dateFormat.format(Date(record.timestamp))
+    val latexExpression = buildShortExpression(record)
 
     Card(
         modifier = Modifier
@@ -118,12 +119,8 @@ fun HistoryItem(record: CalcRecord, onClick: () -> Unit) {
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            Text(
-                text = buildShortExpression(record),
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Normal,
-                color = MaterialTheme.colorScheme.onSurface,
-                textAlign = TextAlign.Center,
+            LatexTextView(
+                latex = latexExpression,
                 modifier = Modifier.fillMaxWidth()
             )
         }
@@ -151,9 +148,7 @@ fun DetailScreen(
                 .padding(bottom = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(
-                onClick = onBack
-            ) {
+            IconButton(onClick = onBack) {
                 Text("←", fontSize = 24.sp)
             }
             Text(
@@ -184,16 +179,14 @@ fun DetailScreen(
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
 
-                Text(
-                    text = integralExpression,
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Normal,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    textAlign = TextAlign.Center,
+                LatexTextView(
+                    latex = integralExpression,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 24.dp)
+                        .height(100.dp)
                 )
+
+                Spacer(modifier = Modifier.height(16.dp))
 
                 Text(
                     text = "Результат",
@@ -203,16 +196,14 @@ fun DetailScreen(
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
 
-                Text(
-                    text = record.result,
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Normal,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    textAlign = TextAlign.Center,
+                LatexTextView(
+                    latex = record.result,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 24.dp)
+                        .height(80.dp)
                 )
+
+                Spacer(modifier = Modifier.height(16.dp))
 
                 Text(
                     text = formattedDate,
@@ -226,18 +217,19 @@ fun DetailScreen(
         }
     }
 }
+
 private fun buildShortExpression(record: CalcRecord): String {
     return if (record.isDefinite) {
-        "∫ₐᵇ ${record.expression} d${record.variable}"
+        "\\int_{${record.lowerLimit}}^{${record.upperLimit}} ${record.expression} d${record.variable}"
     } else {
-        "∫ ${record.expression} d${record.variable}"
+        "\\int ${record.expression} d${record.variable}"
     }
 }
 
 private fun buildFullExpression(record: CalcRecord): String {
     return if (record.isDefinite) {
-        "∫ ${record.expression} d${record.variable}"
+        "\\int_{${record.lowerLimit}}^{${record.upperLimit}} (${record.expression}) d${record.variable}"
     } else {
-        "∫ ${record.expression} d${record.variable}"
+        "\\int (${record.expression}) d${record.variable}"
     }
 }
